@@ -18,6 +18,7 @@ fn main() {
             frequency += line.unwrap().parse::<i32>().unwrap();
             if check.contains(&frequency) {
                 println!("Final frequency: {}", frequency);
+                // @Todo: Make this solution better, shouldn't need to exit the process here
                 process::exit(0);
             }
         }
