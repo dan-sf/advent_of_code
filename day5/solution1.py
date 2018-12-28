@@ -45,7 +45,11 @@ def reduce_polymer(polymer):
 def main():
     with open("input.txt") as fh:
         polymer = fh.readlines()[0].rstrip('\n')
-    print("Number of units in the reduced polymer: {}".format(len(reduce_polymer(polymer))))
+    reduced_polymer = reduce_polymer(polymer)
+    print("Number of units in the reduced polymer: {}".format(len(reduced_polymer)))
+    # Lets write the reduced polymer out so we can use it in solution2
+    with open("output.txt", "w") as fh:
+        fh.write(reduced_polymer)
 
 if __name__ == '__main__':
     main()
