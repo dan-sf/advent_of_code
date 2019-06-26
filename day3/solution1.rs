@@ -13,19 +13,14 @@ fn main() {
     for line in reader.lines() {
         let unwrap_line = line.unwrap();
 
-        // Get xy from the string
-        let mut space_split = unwrap_line.split(' ').collect::<Vec<&str>>()[2];
-        let mut string_xy = space_split.to_string();
-        string_xy.pop(); // Remove last char
-        let xy = string_xy.as_str().split(',').collect::<Vec<&str>>();
-        let x = xy[0].parse::<i32>().unwrap();
-        let y = xy[1].parse::<i32>().unwrap();
-
-        // Get width height from the string
-        let string_wh = unwrap_line.split(' ').collect::<Vec<&str>>()[3];
-        let wh = string_wh.split('x').collect::<Vec<&str>>();
-        let width = wh[0].parse::<i32>().unwrap();
-        let height = wh[1].parse::<i32>().unwrap();
+        // Get xy wh from the string
+        let parts: Vec<&str> = unwrap_line.split(['@', ',', ':', 'x'].as_ref()).collect();
+        let (x, y, width, height) = (
+            parts[1].trim().parse::<i32>().unwrap(),
+            parts[2].trim().parse::<i32>().unwrap(),
+            parts[3].trim().parse::<i32>().unwrap(),
+            parts[4].trim().parse::<i32>().unwrap()
+        );
 
         for i in 0..height {
             for j in 0..width {

@@ -2,24 +2,16 @@ use std::fs;
 use std::io;
 use std::io::BufRead;
 
-// Parse x, y from the input string
-fn get_xy(line: &String) -> (i32, i32) {
-    let space_split = line.split(' ').collect::<Vec<&str>>()[2];
-    let mut string_xy = space_split.to_string();
-    string_xy.pop(); // Remove last char
-    let xy = string_xy.as_str().split(',').collect::<Vec<&str>>();
-    let x = xy[0].parse::<i32>().unwrap();
-    let y = xy[1].parse::<i32>().unwrap();
-    (x, y)
-}
-
-// Parse width, height from the input string
-fn get_wh(line: &String) -> (i32, i32) {
-    let string_wh = line.split(' ').collect::<Vec<&str>>()[3];
-    let wh = string_wh.split('x').collect::<Vec<&str>>();
-    let width = wh[0].parse::<i32>().unwrap();
-    let height = wh[1].parse::<i32>().unwrap();
-    (width, height)
+// Parse x, y, width, height from the input string
+fn get_xy_wh(line: &String) -> (i32, i32, i32, i32) {
+    let parts: Vec<&str> = line.split(['@', ',', ':', 'x'].as_ref()).collect();
+    let (x, y, width, height) = (
+        parts[1].trim().parse::<i32>().unwrap(),
+        parts[2].trim().parse::<i32>().unwrap(),
+        parts[3].trim().parse::<i32>().unwrap(),
+        parts[4].trim().parse::<i32>().unwrap()
+    );
+    (x, y, width, height)
 }
 
 fn main() {
@@ -32,11 +24,8 @@ fn main() {
     for line in reader.lines() {
         let unwrap_line = line.unwrap();
 
-        // Get xy from the string
-        let (x, y) = get_xy(&unwrap_line);
-
-        // Get width height from the string
-        let (width, height) = get_wh(&unwrap_line);
+        // Get xy, wh from the string
+        let (x, y, width, height) = get_xy_wh(&unwrap_line);
 
         for i in 0..height {
             for j in 0..width {
@@ -54,11 +43,8 @@ fn main() {
     for line in reader.lines() {
         let unwrap_line = line.unwrap();
 
-        // Get xy from the string
-        let (x, y) = get_xy(&unwrap_line);
-
-        // Get width height from the string
-        let (width, height) = get_wh(&unwrap_line);
+        // Get xy wh from the string
+        let (x, y, width, height) = get_xy_wh(&unwrap_line);
 
         let mut square = vec![0; (height*width) as usize];
         let mut index = 0;
