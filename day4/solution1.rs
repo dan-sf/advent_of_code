@@ -4,21 +4,24 @@ use std::io::BufRead;
 use std::collections::HashMap;
 
 struct Times {
-    minutes: HashMap<i32, i32>,
+    minutes: Vec<i32>,
     total: i32,
 }
 
 impl Times {
     fn new() -> Times {
-        let mut min_map: HashMap<i32, i32> = HashMap::new();
-        for i in 0..60 {
-            min_map.insert(i, 0);
-        }
         Times {
-            minutes: min_map,
+            minutes: vec![0;60],
             total: 0
         }
     }
+}
+
+fn get_parts(line: &str) -> (&str, &str, &str) {
+    let date = &line[1..11];
+    let minute = &line[12..17];
+    let action = &line[19..];
+    (date, minute, action)
 }
 
 fn main() {
@@ -31,33 +34,16 @@ fn main() {
     let mut lines: Vec<String> = reader.lines().map(|r| r.unwrap()).collect();
     lines.sort();
 
-    let mut i = 0;
-
-    fn get_parts(line: &str) -> (&str, &str, &str) {
-        let date = &line[1..11];
-        let minute = &line[12..17];
-        let action = &line[19..];
-        (date, minute, action)
-    }
-
     let mut current_guard = String::from("");
     let mut lines_iter = lines.iter();
     while let Some(line) = lines_iter.next() {
-        let (date, minute, action) = get_parts(&line);
-        println!("{}, {}, {}", date, minute, action);
+        let (_date, minute, action) = get_parts(&line);
         let parts: Vec<&str> = line.split([' ', ']'].as_ref()).collect();
-        println!("{}", line);
-        println!("{:?}", parts);
-        if i > 10 {
-            //break;
-        }
-        i += 1;
 
         if action.starts_with("Guard") {
             let mut guard_id = parts[4].to_string();
             guard_id.remove(0);
             current_guard = guard_id.clone();
-            println!("current_guard: {}", current_guard);
 
             if !guard_notes.contains_key(&guard_id) {
                 guard_notes.insert(
@@ -68,17 +54,41 @@ fn main() {
         } else {
             let start = minute[3..].parse::<i32>().unwrap();
             let next_line = lines_iter.next().unwrap();
-            let (date, minute, action) = get_parts(&next_line);
+            let (_date, minute, _action) = get_parts(&next_line);
             let end = minute[3..].parse::<i32>().unwrap();
             let local_total = end - start;
 
+            // Add to guard total
             let mut guard_time = guard_notes.get_mut(&current_guard).unwrap();
             guard_time.total += local_total;
 
+            // Add to each minute total
             for m in start..end {
-                let min_val = guard_time.minutes.get_mut(&m).unwrap();
-                *min_val += 1;
+                guard_time.minutes[m as usize] += 1;
             }
         }
     }
+
+    // Get max total guard id
+    let mut max_total = 0;
+    let mut max_gid = String::new();
+    for gid in guard_notes.keys() {
+        if guard_notes[gid].total > max_total {
+            max_total = guard_notes[gid].total;
+            max_gid = gid.to_string();
+        }
+    }
+
+    // Get max min for that guard
+    let mut max_min = -1;
+    let mut max_min_sum = -1;
+    for (index, min) in guard_notes[&max_gid].minutes.iter().enumerate() {
+        if guard_notes[&max_gid].minutes[*min as usize] > max_min_sum {
+            max_min_sum = guard_notes[&max_gid].minutes[*min as usize];
+            max_min = index as i32;
+        }
+    }
+
+    println!("Guard id: {}, Minute: {}, Product: {}", max_gid, max_min, max_min * max_gid.parse::<i32>().unwrap());
 }
+
