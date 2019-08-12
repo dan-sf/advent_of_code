@@ -3,8 +3,26 @@ use std::io;
 use std::io::BufRead;
 use std::collections::HashMap;
 
+struct Times {
+    minutes: HashMap<i32, i32>,
+    total: i32,
+}
+
+impl Times {
+    fn new() -> Times {
+        let mut min_map: HashMap<i32, i32> = HashMap::new();
+        for i in 0..60 {
+            min_map.insert(i, 0);
+        }
+        Times {
+            minutes: min_map,
+            total: 0
+        }
+    }
+}
+
 fn main() {
-    let mut guard_notes: HashMap<String, HashMap<String, Vec<String>>> = HashMap::new();
+    let mut guard_notes: HashMap<String, Times> = HashMap::new();
 
     let input = fs::File::open("input.txt")
         .expect("Something went wrong reading the file");
@@ -15,53 +33,52 @@ fn main() {
 
     let mut i = 0;
 
-    for line in lines.iter() {
+    fn get_parts(line: &str) -> (&str, &str, &str) {
         let date = &line[1..11];
         let minute = &line[12..17];
         let action = &line[19..];
+        (date, minute, action)
+    }
+
+    let mut current_guard = String::from("");
+    let mut lines_iter = lines.iter();
+    while let Some(line) = lines_iter.next() {
+        let (date, minute, action) = get_parts(&line);
         println!("{}, {}, {}", date, minute, action);
         let parts: Vec<&str> = line.split([' ', ']'].as_ref()).collect();
         println!("{}", line);
         println!("{:?}", parts);
         if i > 10 {
-            break;
+            //break;
         }
         i += 1;
 
         if action.starts_with("Guard") {
             let mut guard_id = parts[4].to_string();
             guard_id.remove(0);
+            current_guard = guard_id.clone();
+            println!("current_guard: {}", current_guard);
 
             if !guard_notes.contains_key(&guard_id) {
-                let mut sleep_awake: HashMap<String, Vec<String>> = HashMap::new();
-                sleep_awake.insert(String::from("sleep_start"), vec![]);
-                sleep_awake.insert(String::from("awake_start"), vec![]);
                 guard_notes.insert(
                     guard_id,
-                    sleep_awake,
+                    Times::new(),
                 );
-            } else {
-                if action.starts_with("Falls") {
-                    guard_notes.get_mut(&guard_id).unwrap().get_mut("sleep_start").unwrap().push(minute.to_string());
-                } else {
-                    guard_notes.get_mut(&guard_id).unwrap().get_mut("awake_start").unwrap().push(minute.to_string());
-                }
+            }
+        } else {
+            let start = minute[3..].parse::<i32>().unwrap();
+            let next_line = lines_iter.next().unwrap();
+            let (date, minute, action) = get_parts(&next_line);
+            let end = minute[3..].parse::<i32>().unwrap();
+            let local_total = end - start;
+
+            let mut guard_time = guard_notes.get_mut(&current_guard).unwrap();
+            guard_time.total += local_total;
+
+            for m in start..end {
+                let min_val = guard_time.minutes.get_mut(&m).unwrap();
+                *min_val += 1;
             }
         }
     }
-
-    struct Times {
-        minutes: HashMap<i32, i32>,
-        total: i32,
-    }
-
-    let mut guard_totals: HashMap<String, Times> = HashMap::new();
-
-    for gid in guard_notes.keys() {
-        if !guard_totals.contains_key(gid) {
-            guard_totals.insert(gid.to_string(), Times { minutes: HashMap::new(), total: 0 });
-        }
-        println!("{}", gid);
-    }
-
 }
