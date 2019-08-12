@@ -4,7 +4,7 @@ use std::io::BufRead;
 use std::collections::HashMap;
 
 fn main() {
-    let gaurd_notes: HashMap<String, HashMap<String, Vec<String>>> = HashMap::new();
+    let mut guard_notes: HashMap<String, HashMap<String, Vec<String>>> = HashMap::new();
 
     let input = fs::File::open("input.txt")
         .expect("Something went wrong reading the file");
@@ -24,22 +24,44 @@ fn main() {
         println!("{}", line);
         println!("{:?}", parts);
         if i > 10 {
-
             break;
         }
         i += 1;
 
         if action.starts_with("Guard") {
-            println!("YES");
+            let mut guard_id = parts[4].to_string();
+            guard_id.remove(0);
+
+            if !guard_notes.contains_key(&guard_id) {
+                let mut sleep_awake: HashMap<String, Vec<String>> = HashMap::new();
+                sleep_awake.insert(String::from("sleep_start"), vec![]);
+                sleep_awake.insert(String::from("awake_start"), vec![]);
+                guard_notes.insert(
+                    guard_id,
+                    sleep_awake,
+                );
+            } else {
+                if action.starts_with("Falls") {
+                    guard_notes.get_mut(&guard_id).unwrap().get_mut("sleep_start").unwrap().push(minute.to_string());
+                } else {
+                    guard_notes.get_mut(&guard_id).unwrap().get_mut("awake_start").unwrap().push(minute.to_string());
+                }
+            }
         }
-    //let parts: Vec<&str> = line.split(['@', ',', ':', 'x'].as_ref()).collect();
-    //let (x, y, width, height) = (
-    //    parts[1].trim().parse::<i32>().unwrap(),
-    //    parts[2].trim().parse::<i32>().unwrap(),
-    //    parts[3].trim().parse::<i32>().unwrap(),
-    //    parts[4].trim().parse::<i32>().unwrap()
-    //);
-    //(x, y, width, height)
+    }
+
+    struct Times {
+        minutes: HashMap<i32, i32>,
+        total: i32,
+    }
+
+    let mut guard_totals: HashMap<String, Times> = HashMap::new();
+
+    for gid in guard_notes.keys() {
+        if !guard_totals.contains_key(gid) {
+            guard_totals.insert(gid.to_string(), Times { minutes: HashMap::new(), total: 0 });
+        }
+        println!("{}", gid);
     }
 
 }
