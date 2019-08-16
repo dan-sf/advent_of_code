@@ -3,7 +3,6 @@ use std::i32::MAX;
 use std::io::Read;
 use std::collections::HashSet;
 
-//fn reduce_poly(polymer: &String) -> i32 {
 fn reduce_poly(poly_chars: &mut Vec<char>) -> i32 {
     let mut reductions = 1;
     let mut index;
@@ -38,6 +37,7 @@ fn remove_char(poly_chars: &mut Vec<char>, ch: char) {
 }
 
 fn main() {
+    // This solution is really slow, but works...
     let mut input = fs::File::open("input.txt")
         .expect("Something went wrong reading the file");
 
