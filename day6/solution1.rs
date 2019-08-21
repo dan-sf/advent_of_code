@@ -22,17 +22,8 @@ impl Eq for Point { }
 
 fn construct_grid(coords: &Vec<Point>) -> Vec<Vec<Option<Point>>> {
     let mut grid: Vec<Vec<Option<Point>>> = Vec::new();
-    let mut max_x = 0;
-    let mut max_y = 0;
-
-    for p in coords.iter() {
-        if p.x > max_x {
-            max_x = p.x;
-        }
-        if p.y > max_y {
-            max_y = p.y;
-        }
-    }
+    let mut max_x = coords.iter().map(|p| p.x).max().unwrap();
+    let mut max_y = coords.iter().map(|p| p.y).max().unwrap();
 
     // We need to add 1 to the max x and y to account for the origin
     max_x += 1;
