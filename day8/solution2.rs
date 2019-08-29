@@ -41,7 +41,7 @@ fn process_metadata(iter: &mut Iter<'_, i32>) -> Vec<i32> {
         if let Some(meta) = iter.next() {
             let index = (meta-1) as usize;
             if index < child_node_vals.len() {
-                parent_node_val += child_node_vals[index]
+                parent_node_val += child_node_vals[index];
             }
         }
     }
