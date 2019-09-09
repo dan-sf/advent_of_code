@@ -1,8 +1,14 @@
 
-// Load the entire input into a 2d grid. Have an enum with all possible types of things that could be in a grid location. Iterate through the grid ticking the carts in turn until we see a collision
+// Load the entire input into a 2d grid. Have an enum with all possible types of things that could
+// be in a grid location. Iterate through the grid ticking the carts in turn until we see a
+// collision
 
 
-// Load the grid only the tracks and what they are into a 2d matrix, when we come to carts, load those into a vec and store their state, make sure to be able to sort the carts by row,col so we can tick them in order. We might also want to store all ocupied locations in a hashset so that every time we move a cart we can check to see if the location we move to is ocupided resulting in a crash. We would also need to remove that location from the set once we move a cart
+// Load the grid only the tracks and what they are into a 2d matrix, when we come to carts, load
+// those into a vec and store their state, make sure to be able to sort the carts by row,col so we
+// can tick them in order. We might also want to store all ocupied locations in a hashset so that
+// every time we move a cart we can check to see if the location we move to is ocupided resulting
+// in a crash. We would also need to remove that location from the set once we move a cart
 
 
 use std::fs;
@@ -146,9 +152,10 @@ fn parse_input(path: &str) -> (Vec<Vec<Location>>, Vec<Cart>, HashSet<(i32, i32)
 }
 
 fn get_first_crash(grid: Vec<Vec<Location>>, mut carts: Vec<Cart>, mut cart_locations: HashSet<(i32, i32)>) -> (i32, i32) {
+    let mut lcount = 0;
     loop {
         for cart in carts.iter_mut() {
-            println!("{:?}", cart);
+            //println!("{:?}", cart);
             cart_locations.remove(&cart.location);
             match grid[cart.location.0 as usize][cart.location.1 as usize] {
                 Location::TurnRight => {
@@ -156,27 +163,31 @@ fn get_first_crash(grid: Vec<Vec<Location>>, mut carts: Vec<Cart>, mut cart_loca
                         Direction::Up => {
                             cart.direction = Direction::Right;
                         },
+                        Direction::Down => {
+                            cart.direction = Direction::Left;
+                        },
                         Direction::Left => {
                             cart.direction = Direction::Down;
                         },
-                        _ => {
-                            println!("a");
-                            return (-1, -1);
-                        }
+                        Direction::Right => {
+                            cart.direction = Direction::Up;
+                        },
                     }
                 },
                 Location::TurnDown => {
                     match cart.direction {
                         Direction::Left => {
+                            cart.direction = Direction::Up;
+                        },
+                        Direction::Right => {
                             cart.direction = Direction::Down;
                         },
                         Direction::Up => {
                             cart.direction = Direction::Left;
                         },
-                        _ => {
-                            println!("b");
-                            return (-1, -1);
-                        }
+                        Direction::Down => {
+                            cart.direction = Direction::Right;
+                        },
                     }
                 },
                 Location::Intersection => {
@@ -241,21 +252,18 @@ fn get_first_crash(grid: Vec<Vec<Location>>, mut carts: Vec<Cart>, mut cart_loca
                                 },
                             }
                         },
-                        _ => {
-                            println!("c");
-                            return (-1, -1);
-                        }
                     }
                 },
                 Location::LeftRight => { },
                 Location::UpDown => { },
                 Location::Empty => {
+                    println!("cart: {:?}, grid location: {:?}", cart, grid[cart.location.0 as usize][cart.location.1 as usize]);
                     return (-1, -1);
                 },
             };
-            print!("before cart: {:?} ", cart);
+            //print!("before cart: {:?}, grid before: {:?} ", cart, grid[cart.location.0 as usize][cart.location.1 as usize]);
             cart.move_it();
-            println!("after cart: {:?}", cart);
+            //println!("after cart: {:?}, grid after: {:?}", cart, grid[cart.location.0 as usize][cart.location.1 as usize]);
 
             // Detect crash
             if cart_locations.contains(&cart.location) {
@@ -264,11 +272,21 @@ fn get_first_crash(grid: Vec<Vec<Location>>, mut carts: Vec<Cart>, mut cart_loca
             cart_locations.insert(cart.location);
         }
         carts.sort();
+        println!("{:?}", carts.iter().map(|c| c.location).collect::<Vec<(i32, i32)>>());
+        lcount += 1;
+        if lcount > 18 {
+            return (-1, -1);
+        }
     }
+}
+
+fn to_xy(row_col: (i32, i32)) -> (i32, i32) {
+    (row_col.1, row_col.0)
 }
 
 fn main() {
     let (grid, carts, cart_locations) = parse_input("input.txt");
-    println!("First crash location: {:?}", get_first_crash(grid, carts, cart_locations));
+    let xy_loc = to_xy(get_first_crash(grid, carts, cart_locations));
+    println!("First crash location: {:?}", xy_loc);
 }
 
