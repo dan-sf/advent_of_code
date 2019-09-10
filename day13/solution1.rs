@@ -1,35 +1,24 @@
-
-// Load the entire input into a 2d grid. Have an enum with all possible types of things that could
-// be in a grid location. Iterate through the grid ticking the carts in turn until we see a
-// collision
-
-
-// Load the grid only the tracks and what they are into a 2d matrix, when we come to carts, load
-// those into a vec and store their state, make sure to be able to sort the carts by row,col so we
-// can tick them in order. We might also want to store all ocupied locations in a hashset so that
-// every time we move a cart we can check to see if the location we move to is ocupided resulting
-// in a crash. We would also need to remove that location from the set once we move a cart
-
-
 use std::fs;
 use std::io;
 use std::io::BufRead;
-use std::collections::HashMap;
 use std::collections::HashSet;
-
 use std::cmp::Ordering;
+
+// Here we load the entire grid of tracks into a matrix of enums containing the various location
+// types. As we see carts we load those into a vec which we use to move the carts forward based on
+// the cart state we read in
 
 #[derive(Debug)]
 enum Location {
-    Empty,
+    Empty, // -> ' '
 
-    LeftRight,
-    UpDown,
+    LeftRight, // -> '-'
+    UpDown, // -> '|'
 
-    TurnRight,
-    TurnDown,
+    TurnRight, // -> '/'
+    TurnDown, // -> '\'
 
-    Intersection,
+    Intersection, // -> '+'
 }
 
 #[derive(Debug)]
@@ -50,18 +39,18 @@ enum IntersectionAction {
 #[derive(Debug)]
 struct Cart {
     direction: Direction,
-    location: (i32, i32), // Maybe usize here?
+    location: (usize, usize),
     intersection_action: IntersectionAction,
 }
 
 impl Cart {
+    // Move the cart in which ever direction it is currently pointed in
     fn move_it(&mut self) {
         match self.direction {
             Direction::Up => {
                 self.location.0 -= 1;
             },
             Direction::Down => {
-                self.direction = Direction::Down;
                 self.location.0 += 1;
             },
             Direction::Left => {
@@ -74,6 +63,7 @@ impl Cart {
     }
 }
 
+// Implement ordering for carts so we can sort them based on location
 impl Ord for Cart {
     fn cmp(&self, other: &Self) -> Ordering {
         self.location.cmp(&other.location)
@@ -93,11 +83,12 @@ impl PartialEq for Cart {
 }
 impl Eq for Cart {}
 
-fn get_cart(ch_dir: char, location: (i32, i32)) -> Cart {
-    let mut direction = Direction::Up;
+// Generate cart struct given a char direction and a location
+fn get_cart(ch_dir: char, location: (usize, usize)) -> Cart {
+    let mut direction = Direction::Up; // Init the direction
     if ch_dir == '^' {
         direction = Direction::Up;
-    } else if ch_dir == 'V' {
+    } else if ch_dir == 'v' {
         direction = Direction::Down;
     } else if ch_dir == '<' {
         direction = Direction::Left;
@@ -111,14 +102,14 @@ fn get_cart(ch_dir: char, location: (i32, i32)) -> Cart {
     }
 }
 
-fn parse_input(path: &str) -> (Vec<Vec<Location>>, Vec<Cart>, HashSet<(i32, i32)>) {
+fn parse_input(path: &str) -> (Vec<Vec<Location>>, Vec<Cart>, HashSet<(usize, usize)>) {
     let input = fs::File::open(path)
         .expect("Something went wrong reading the file");
     let reader = io::BufReader::new(input);
 
     let mut grid: Vec<Vec<Location>> = Vec::new();
     let mut carts: Vec<Cart> = Vec::new();
-    let mut cart_locations: HashSet<(i32, i32)> = HashSet::new();
+    let mut cart_locations: HashSet<(usize, usize)> = HashSet::new();
 
     for (r, line) in reader.lines().enumerate() {
         let mut row: Vec<Location> = Vec::new();
@@ -128,14 +119,14 @@ fn parse_input(path: &str) -> (Vec<Vec<Location>>, Vec<Cart>, HashSet<(i32, i32)
             } else if ch == '-' || ch == '>' || ch == '<' {
                 row.push(Location::LeftRight);
                 if ch == '>' || ch == '<' {
-                    carts.push(get_cart(ch, (r as i32, c as i32)));
-                    cart_locations.insert((r as i32, c as i32));
+                    carts.push(get_cart(ch, (r, c)));
+                    cart_locations.insert((r, c));
                 }
             } else if ch == '|' || ch == 'v' || ch == '^' {
                 row.push(Location::UpDown);
                 if ch == 'v' || ch == '^' {
-                    carts.push(get_cart(ch, (r as i32, c as i32)));
-                    cart_locations.insert((r as i32, c as i32));
+                    carts.push(get_cart(ch, (r, c)));
+                    cart_locations.insert((r, c));
                 }
             } else if ch == '/' {
                 row.push(Location::TurnRight);
@@ -147,17 +138,14 @@ fn parse_input(path: &str) -> (Vec<Vec<Location>>, Vec<Cart>, HashSet<(i32, i32)
         }
         grid.push(row);
     }
-    //println!("{:?}", carts);
     (grid, carts, cart_locations)
 }
 
-fn get_first_crash(grid: Vec<Vec<Location>>, mut carts: Vec<Cart>, mut cart_locations: HashSet<(i32, i32)>) -> (i32, i32) {
-    let mut lcount = 0;
-    loop {
+fn get_first_crash(grid: Vec<Vec<Location>>, mut carts: Vec<Cart>, mut cart_locations: HashSet<(usize, usize)>) -> (usize, usize) {
+    loop { // Loop/tick until we see a crash
         for cart in carts.iter_mut() {
-            //println!("{:?}", cart);
             cart_locations.remove(&cart.location);
-            match grid[cart.location.0 as usize][cart.location.1 as usize] {
+            match grid[cart.location.0][cart.location.1] {
                 Location::TurnRight => {
                     match cart.direction {
                         Direction::Up => {
@@ -257,13 +245,12 @@ fn get_first_crash(grid: Vec<Vec<Location>>, mut carts: Vec<Cart>, mut cart_loca
                 Location::LeftRight => { },
                 Location::UpDown => { },
                 Location::Empty => {
-                    println!("cart: {:?}, grid location: {:?}", cart, grid[cart.location.0 as usize][cart.location.1 as usize]);
-                    return (-1, -1);
+                    // Carts should never be able to reach an empty location so returning debug
+                    // bogus location
+                    return (1234, 1234);
                 },
             };
-            //print!("before cart: {:?}, grid before: {:?} ", cart, grid[cart.location.0 as usize][cart.location.1 as usize]);
             cart.move_it();
-            //println!("after cart: {:?}, grid after: {:?}", cart, grid[cart.location.0 as usize][cart.location.1 as usize]);
 
             // Detect crash
             if cart_locations.contains(&cart.location) {
@@ -272,21 +259,16 @@ fn get_first_crash(grid: Vec<Vec<Location>>, mut carts: Vec<Cart>, mut cart_loca
             cart_locations.insert(cart.location);
         }
         carts.sort();
-        println!("{:?}", carts.iter().map(|c| c.location).collect::<Vec<(i32, i32)>>());
-        lcount += 1;
-        if lcount > 18 {
-            return (-1, -1);
-        }
     }
 }
 
-fn to_xy(row_col: (i32, i32)) -> (i32, i32) {
+// Convert row/col tuples to x/y tuples
+fn to_xy(row_col: (usize, usize)) -> (usize, usize) {
     (row_col.1, row_col.0)
 }
 
 fn main() {
     let (grid, carts, cart_locations) = parse_input("input.txt");
-    let xy_loc = to_xy(get_first_crash(grid, carts, cart_locations));
-    println!("First crash location: {:?}", xy_loc);
+    println!("First crash location: {:?}", to_xy(get_first_crash(grid, carts, cart_locations)));
 }
 
