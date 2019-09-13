@@ -5,8 +5,8 @@ use std::collections::HashMap;
 use std::cmp::Ordering;
 
 // Here we load the entire grid of tracks into a matrix of enums containing the various location
-// types. As we see carts we load those into a vec which we use to move the carts forward based on
-// the cart state we read in
+// types. As we see carts we load those into a hashmap which we use to move the carts forward based
+// on the cart state we read in
 
 #[derive(Debug)]
 enum Location {
@@ -138,8 +138,8 @@ fn parse_input(path: &str) -> (Vec<Vec<Location>>, HashMap<(usize, usize), Cart>
     (grid, cart_map)
 }
 
-fn get_first_crash(grid: Vec<Vec<Location>>, mut cart_map: HashMap<(usize, usize), Cart>) -> (usize, usize) {
-    loop { // Loop/tick until we see a crash
+fn get_last_remaining_cart(grid: Vec<Vec<Location>>, mut cart_map: HashMap<(usize, usize), Cart>) -> (usize, usize) {
+    loop { // Loop/tick until there is one cart left
         let mut keys: Vec<(usize, usize)> = cart_map.keys().map(|k| k.clone()).collect();
         keys.sort();
         for key in keys {
@@ -255,20 +255,66 @@ fn get_first_crash(grid: Vec<Vec<Location>>, mut cart_map: HashMap<(usize, usize
 
                 // Detect crash
                 if cart_map.contains_key(&cart.location) {
-                    println!("removed: {:?}", cart_map.remove(&cart.location));
-                    //println!("map: {:?}", cart_map);
+                    cart_map.remove(&cart.location);
                 } else {
                     cart_map.insert(cart.location, cart);
                 }
-
-                if cart_map.len() == 1 {
-                    for (k, _) in cart_map.drain() {
-                        return k;
-                    }
-                }
             }
         }
-        println!("map: {:?}", cart_map);
+
+        // Return if there is only 1 cart at the end of the tick
+        if cart_map.len() == 1 {
+            for (k, _) in cart_map.drain() {
+                return k;
+            }
+        }
+    }
+}
+
+// Output what the grid currently looks like
+fn _debug_grid_print(grid: &Vec<Vec<Location>>, cart_map: &HashMap<(usize, usize), Cart>) {
+    for row in 0..grid.len() {
+        for col in 0..grid[0].len() {
+            if cart_map.contains_key(&(row, col)) {
+                let cart = cart_map.get(&(row, col)).unwrap();
+                match cart.direction {
+                    Direction::Up => {
+                        print!("^");
+                    },
+                    Direction::Down => {
+                        print!("v");
+                    },
+                    Direction::Left => {
+                        print!("<");
+                    },
+                    Direction::Right => {
+                        print!(">");
+                    },
+                };
+            } else {
+                match grid[row][col] {
+                    Location::Empty => {
+                        print!(" ");
+                    },
+                    Location::LeftRight => {
+                        print!("-");
+                    },
+                    Location::UpDown => {
+                        print!("|");
+                    },
+                    Location::TurnRight => {
+                        print!("/");
+                    },
+                    Location::TurnDown => {
+                        print!("\\");
+                    },
+                    Location::Intersection => {
+                        print!("+");
+                    },
+                };
+            }
+        }
+        print!("\n");
     }
 }
 
@@ -278,8 +324,7 @@ fn to_xy(row_col: (usize, usize)) -> (usize, usize) {
 }
 
 fn main() {
-    let (grid, cart_map) = parse_input("input.test.txt");
-    //let (grid, cart_map) = parse_input("input.txt");
-    println!("Last cart location: {:?}", to_xy(get_first_crash(grid, cart_map)));
+    let (grid, cart_map) = parse_input("input.txt");
+    println!("Last cart location: {:?}", to_xy(get_last_remaining_cart(grid, cart_map)));
 }
 
