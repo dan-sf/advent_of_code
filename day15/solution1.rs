@@ -61,30 +61,61 @@ fn parse_input(path: &str) -> (Vec<Vec<Location>>, BTreeMap<(usize, usize), Unit
     (grid, unit_map)
 }
 
-fn loop_through_turns(grid: Vec<Vec<Location>>, unit_map: BTreeMap<(usize, usize), Unit>) {
+fn loop_through_turns(grid: Vec<Vec<Location>>, mut unit_map: BTreeMap<(usize, usize), Unit>) {
     let rows = grid.len();
     let cols = grid[0].len();
     loop {
-        for (row, col) in unit_map.iter() {
-            let mut unit = unit_map[(row, col)];
-            let attack_location = can_attack(&unit, &grid);
-            if let attack_location = Some(loc) {
-                unit_map[loc].health -= 3; // TODO: Add code to remove units
+        let keys = unit_map.keys().map(|r| r.clone()).collect::<Vec<(usize, usize)>>();
+        for (row, col) in keys.iter() {
+            let mut unit = unit_map.get_mut(&(*row, *col)).unwrap();
+            let attack_location = can_attack(&unit, &unit_map, &grid);
+            if let Some(loc) = attack_location {
+                unit_map[&loc].health -= 3; // TODO: Add code to remove units
             } else {
-                let targets = get_targets(&unit_map, (row, col), &grid);
-                let in_ragne = get_in_range(targets, &grid);
-                let reachable = get_reachable(in_range, &grid);
-                let nearest = get_nearest(reachable, &grid);
-                let chosen = nearest[0];
-                let move_loc = get_move_dir(&unit, &grid);
-                move_unit(&mut unit, &grid);
+                //let targets = get_targets(&unit_map, (row, col), &grid);
+                //let in_ragne = get_in_range(targets, &grid);
+                //let reachable = get_reachable(in_range, &grid);
+                //let nearest = get_nearest(reachable, &grid);
+                //let chosen = nearest[0];
+                //let move_loc = get_move_dir(&unit, &grid);
+                //move_unit(&mut unit, &grid);
             }
         }
     }
 }
 
-fn can_attack(unit: &Unit, grid: &Vec<Vec<Location>>) -> Option((usize, usize)) {
-    //
+fn same_faction(a: &Faction, b: &Faction) -> bool {
+    match a {
+        Faction::Elf => {
+            match b {
+                Faction::Elf => {
+                    return true;
+                },
+                Faction::Goblin => {
+                    return false;
+                },
+            };
+        },
+        Faction::Goblin => {
+            match b {
+                Faction::Elf => {
+                    return false;
+                },
+                Faction::Goblin => {
+                    return true;
+                },
+            };
+        },
+    };
+}
+
+fn can_attack(unit: &Unit, unit_map: &BTreeMap<(usize, usize), Unit>, grid: &Vec<Vec<Location>>) -> Option<(usize, usize)> {
+    let row = unit.location.0;
+    let col = unit.location.0;
+    if row > 0 && unit_map.contains_key(&(row-1, col)) && same_faction(&unit_map[&(row-1, col)].faction, &unit.faction) {
+        return Some((row-1, col));
+    }
+    None
 }
 
 // fn get_last_remaining_cart(grid: Vec<Vec<Location>>, mut cart_map: HashMap<(usize, usize), Cart>) -> (usize, usize) {
