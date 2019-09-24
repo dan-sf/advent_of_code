@@ -116,6 +116,7 @@ fn is_valid_loc(grid: &Vec<Vec<Location>>, unit_map: &BTreeMap<(usize, usize), U
 fn can_reach(grid: &Vec<Vec<Location>>, unit_map: &BTreeMap<(usize, usize), Unit>, start: (usize, usize), end: (usize, usize)) -> bool {
     let mut queue: Vec<(usize, usize)> = vec![start]; // use insert and pop for queue-likeness
     let mut visited: HashSet<(usize, usize)> = HashSet::new();
+    let mut count = 0;
 
     while !queue.is_empty() {
         let loc = queue.pop().unwrap();
@@ -143,8 +144,12 @@ fn can_reach(grid: &Vec<Vec<Location>>, unit_map: &BTreeMap<(usize, usize), Unit
                 queue.insert(0, new_loc);
             }
         }
+        println!("visited: {:?}", visited);
         println!("queue: {:?}", queue);
-        break;
+        //count +=1;
+        //if count > 5 {
+        //    break;
+        //}
     }
     false
 }
@@ -172,20 +177,20 @@ fn loop_through_turns(grid: Vec<Vec<Location>>, mut unit_map: BTreeMap<(usize, u
                 unit_map.get_mut(&loc).unwrap().health -= 3; // TODO: Add code to remove units
             } else {
                 let targets = get_targets(&grid, &unit_map, &unit);
-                println!("{:?}", targets);
+                println!("targets: {:?}", targets);
                 let in_range = get_in_range(&grid, &unit_map, targets);
-                println!("{:?}", in_range);
+                println!("in_range: {:?}", in_range);
                 let reachable = get_reachable(&grid, &unit_map, &unit, in_range);
-                println!("{:?}", reachable);
+                println!("reachable: {:?}", reachable);
 
                 //let nearest = get_nearest(&grid, reachable);
                 //let chosen = nearest[0];
                 //let move_loc = get_move_dir(&grid, &unit);
                 //move_unit(&mut unit, &grid);
             }
-            break;
+            //break;
         }
-        break;
+        //break;
     }
 }
 
@@ -391,7 +396,8 @@ fn _debug_grid_print(grid: &Vec<Vec<Location>>, unit_map: &BTreeMap<(usize, usiz
 // }
 
 fn main() {
-    let (mut grid, mut unit_map) = parse_input("input.txt");
+    //let (mut grid, mut unit_map) = parse_input("input.txt");
+    let (mut grid, mut unit_map) = parse_input("input.test.txt");
     loop_through_turns(grid, unit_map);
 
     // println!("{:?}", unit_map[&(1,14)]);
