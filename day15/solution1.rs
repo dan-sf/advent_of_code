@@ -113,8 +113,8 @@ fn is_valid_loc(grid: &Vec<Vec<Location>>, unit_map: &BTreeMap<(usize, usize), U
     false
 }
 
-fn can_reach(grid: &Vec<Vec<Location>>, unit_map: &BTreeMap<(usize, usize), Unit>, start: (usize, usize), end: (usize, usize)) -> bool {
-    let mut queue: Vec<(usize, usize, usize)> = vec![(start.0, start.1, 0)]; // use insert and pop for queue-likeness
+fn can_reach(grid: &Vec<Vec<Location>>, unit_map: &BTreeMap<(usize, usize), Unit>, start: (usize, usize), end: (usize, usize)) -> (bool, (usize, usize, usize)) {
+    let mut queue: Vec<(usize, usize, usize)> = vec![(0, start.0, start.1)]; // use insert and pop for queue-likeness
     let mut visited: HashSet<(usize, usize)> = HashSet::new();
     visited.insert(start);
     let mut count = 0;
@@ -122,57 +122,50 @@ fn can_reach(grid: &Vec<Vec<Location>>, unit_map: &BTreeMap<(usize, usize), Unit
     // @Question: Should my bfs be in reading order or something?
     while !queue.is_empty() {
         let loc = queue.pop().unwrap();
-        if (loc.0, loc.1) == end {
-            println!("found loc: {:?}", loc);
-            return true;
+        if (loc.1, loc.2) == end {
+            return (true, loc);
         }
-        let new_step = (loc.0+1, loc.1, loc.2+1);
-        let new_point = (new_step.0, new_step.1);
-        //println!("new_loc: {:?}, is_valid: {}, not visited: {}", new_loc, is_valid_loc(grid, unit_map, new_loc), !visited.contains(&new_loc));
+        let new_step = (loc.0+1, loc.1+1, loc.2);
+        let new_point = (new_step.1, new_step.2);
         if is_valid_loc(grid, unit_map, new_point) && !visited.contains(&new_point) {
             queue.insert(0, new_step);
             visited.insert(new_point);
         }
-        let new_step = (loc.0, loc.1+1, loc.2+1);
-        let new_point = (new_step.0, new_step.1);
+        let new_step = (loc.0+1, loc.1, loc.2+1);
+        let new_point = (new_step.1, new_step.2);
         if is_valid_loc(grid, unit_map, new_point) && !visited.contains(&new_point) {
             queue.insert(0, new_step);
             visited.insert(new_point);
         }
         if loc.0 > 0 {
-            let new_step = (loc.0-1, loc.1, loc.2+1);
-            let new_point = (new_step.0, new_step.1);
+            let new_step = (loc.0+1, loc.1-1, loc.2);
+            let new_point = (new_step.1, new_step.2);
             if is_valid_loc(grid, unit_map, new_point) && !visited.contains(&new_point) {
                 queue.insert(0, new_step);
                 visited.insert(new_point);
             }
         }
         if loc.1 > 0 {
-            let new_step = (loc.0, loc.1-1, loc.2+1);
-            let new_point = (new_step.0, new_step.1);
+            let new_step = (loc.0+1, loc.1, loc.2-1);
+            let new_point = (new_step.1, new_step.2);
             if is_valid_loc(grid, unit_map, new_point) && !visited.contains(&new_point) {
                 queue.insert(0, new_step);
                 visited.insert(new_point);
             }
         }
-        //println!("queue.len(): {:?}", queue.len());
-        //println!("visited: {:?}", visited);
-        //println!("queue: {:?}", queue);
-        //count +=1;
-        //if count > 5 {
-        //    break;
-        //}
     }
-    false
+    (false, (0,0,0)) // @Question: Should I just make this an option?
 }
 
-fn get_reachable(grid: &Vec<Vec<Location>>, unit_map: &BTreeMap<(usize, usize), Unit>, unit: &Unit, in_range: Vec<(usize, usize)>) -> Vec<(usize, usize)> {
-    let mut output: Vec<(usize, usize)> = Vec::new();
+fn get_reachable(grid: &Vec<Vec<Location>>, unit_map: &BTreeMap<(usize, usize), Unit>, unit: &Unit, in_range: Vec<(usize, usize)>) -> Vec<(usize, usize, usize)> {
+    let mut output: Vec<(usize, usize, usize)> = Vec::new();
     for loc in in_range.iter() {
-        if can_reach(grid, unit_map, unit.location, *loc) {
-            output.push(loc.clone());
+        let (can_reach_it, dist_loc) = can_reach(grid, unit_map, unit.location, *loc);
+        if can_reach_it {
+            output.push(dist_loc.clone());
         }
     }
+    output.sort();
     output
 }
 
@@ -193,6 +186,39 @@ fn loop_through_turns(grid: Vec<Vec<Location>>, mut unit_map: BTreeMap<(usize, u
                 println!("in_range: {:?}", in_range);
                 let reachable = get_reachable(&grid, &unit_map, &unit, in_range); // for reach reachable we should store how far that reachable location is from the current unit
                 println!("reachable: {:?}", reachable);
+
+                if reachable.is_empty() {
+                    // Do something (continue?)
+                }
+
+                let closest_reachable = reachable[0];
+                println!("closest reachable: {:?}", closest_reachable);
+
+
+                let mut next_point: Vec<(usize, usize, usize)> = Vec::new();
+                let new_point = (unit.location.0+1, unit.location.1);
+                if is_valid_loc(&grid, &unit_map, new_point) {
+                    next_point.push(can_reach(&grid, &unit_map, new_point, (closest_reachable.0, closest_reachable.1)).1);
+                }
+                let new_point = (unit.location.0, unit.location.1+1);
+                if is_valid_loc(&grid, &unit_map, new_point) {
+                    next_point.push(can_reach(&grid, &unit_map, new_point, (closest_reachable.0, closest_reachable.1)).1);
+                }
+                if unit.location.0 > 0 {
+                    let new_point = (unit.location.0-1, unit.location.1);
+                    if is_valid_loc(&grid, &unit_map, new_point) {
+                        next_point.push(can_reach(&grid, &unit_map, new_point, (closest_reachable.0, closest_reachable.1)).1);
+                    }
+                }
+                if unit.location.1 > 0 {
+                    let new_point = (unit.location.0, unit.location.1-1);
+                    if is_valid_loc(&grid, &unit_map, new_point) {
+                        next_point.push(can_reach(&grid, &unit_map, new_point, (closest_reachable.0, closest_reachable.1)).1);
+                    }
+                }
+                println!("next_point: {:?}", next_point);
+
+                // How do I figure out which way to move??? (I could just get closest reachable dist from all 4 points around the unit
 
                 //let nearest = get_nearest(&grid, reachable);
                 //let chosen = nearest[0];
