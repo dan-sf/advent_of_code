@@ -114,38 +114,50 @@ fn is_valid_loc(grid: &Vec<Vec<Location>>, unit_map: &BTreeMap<(usize, usize), U
 }
 
 fn can_reach(grid: &Vec<Vec<Location>>, unit_map: &BTreeMap<(usize, usize), Unit>, start: (usize, usize), end: (usize, usize)) -> bool {
-    let mut queue: Vec<(usize, usize)> = vec![start]; // use insert and pop for queue-likeness
+    let mut queue: Vec<(usize, usize, usize)> = vec![(start.0, start.1, 0)]; // use insert and pop for queue-likeness
     let mut visited: HashSet<(usize, usize)> = HashSet::new();
+    visited.insert(start);
     let mut count = 0;
 
+    // @Question: Should my bfs be in reading order or something?
     while !queue.is_empty() {
         let loc = queue.pop().unwrap();
-        visited.insert(loc);
-        if loc == end {
+        if (loc.0, loc.1) == end {
+            println!("found loc: {:?}", loc);
             return true;
         }
-        let new_loc = (loc.0+1, loc.1);
-        if is_valid_loc(grid, unit_map, new_loc) && !visited.contains(&new_loc) {
-            queue.insert(0, new_loc);
+        let new_step = (loc.0+1, loc.1, loc.2+1);
+        let new_point = (new_step.0, new_step.1);
+        //println!("new_loc: {:?}, is_valid: {}, not visited: {}", new_loc, is_valid_loc(grid, unit_map, new_loc), !visited.contains(&new_loc));
+        if is_valid_loc(grid, unit_map, new_point) && !visited.contains(&new_point) {
+            queue.insert(0, new_step);
+            visited.insert(new_point);
         }
-        let new_loc = (loc.0, loc.1+1);
-        if is_valid_loc(grid, unit_map, new_loc) && !visited.contains(&new_loc) {
-            queue.insert(0, new_loc);
+        let new_step = (loc.0, loc.1+1, loc.2+1);
+        let new_point = (new_step.0, new_step.1);
+        if is_valid_loc(grid, unit_map, new_point) && !visited.contains(&new_point) {
+            queue.insert(0, new_step);
+            visited.insert(new_point);
         }
         if loc.0 > 0 {
-            let new_loc = (loc.0-1, loc.1);
-            if is_valid_loc(grid, unit_map, new_loc) && !visited.contains(&new_loc) {
-                queue.insert(0, new_loc);
+            let new_step = (loc.0-1, loc.1, loc.2+1);
+            let new_point = (new_step.0, new_step.1);
+            if is_valid_loc(grid, unit_map, new_point) && !visited.contains(&new_point) {
+                queue.insert(0, new_step);
+                visited.insert(new_point);
             }
         }
         if loc.1 > 0 {
-            let new_loc = (loc.0, loc.1-1);
-            if is_valid_loc(grid, unit_map, new_loc) && !visited.contains(&new_loc) {
-                queue.insert(0, new_loc);
+            let new_step = (loc.0, loc.1-1, loc.2+1);
+            let new_point = (new_step.0, new_step.1);
+            if is_valid_loc(grid, unit_map, new_point) && !visited.contains(&new_point) {
+                queue.insert(0, new_step);
+                visited.insert(new_point);
             }
         }
-        println!("visited: {:?}", visited);
-        println!("queue: {:?}", queue);
+        //println!("queue.len(): {:?}", queue.len());
+        //println!("visited: {:?}", visited);
+        //println!("queue: {:?}", queue);
         //count +=1;
         //if count > 5 {
         //    break;
@@ -160,7 +172,6 @@ fn get_reachable(grid: &Vec<Vec<Location>>, unit_map: &BTreeMap<(usize, usize), 
         if can_reach(grid, unit_map, unit.location, *loc) {
             output.push(loc.clone());
         }
-        break;
     }
     output
 }
@@ -180,7 +191,7 @@ fn loop_through_turns(grid: Vec<Vec<Location>>, mut unit_map: BTreeMap<(usize, u
                 println!("targets: {:?}", targets);
                 let in_range = get_in_range(&grid, &unit_map, targets);
                 println!("in_range: {:?}", in_range);
-                let reachable = get_reachable(&grid, &unit_map, &unit, in_range);
+                let reachable = get_reachable(&grid, &unit_map, &unit, in_range); // for reach reachable we should store how far that reachable location is from the current unit
                 println!("reachable: {:?}", reachable);
 
                 //let nearest = get_nearest(&grid, reachable);
@@ -188,9 +199,9 @@ fn loop_through_turns(grid: Vec<Vec<Location>>, mut unit_map: BTreeMap<(usize, u
                 //let move_loc = get_move_dir(&grid, &unit);
                 //move_unit(&mut unit, &grid);
             }
-            //break;
+            unit_map.insert(unit.location.clone(), unit);
         }
-        //break;
+        break;
     }
 }
 
