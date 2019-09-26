@@ -3,7 +3,6 @@ use std::io;
 use std::io::BufRead;
 use std::collections::HashSet;
 use std::collections::BTreeMap;
-use std::cmp::Ordering;
 
 #[derive(Debug)]
 enum Location {
@@ -22,6 +21,7 @@ struct Unit {
     health: i32,
     location: (usize, usize),
     faction: Faction,
+    attack_action: i32,
 }
 
 impl Unit {
@@ -30,6 +30,7 @@ impl Unit {
             health: 200,
             location: location,
             faction: faction,
+            attack_action: 0,
         }
     }
 }
@@ -61,7 +62,8 @@ fn parse_input(path: &str) -> (Vec<Vec<Location>>, BTreeMap<(usize, usize), Unit
     (grid, unit_map)
 }
 
-fn get_targets(grid: &Vec<Vec<Location>>, unit_map: &BTreeMap<(usize, usize), Unit>, unit: &Unit) -> Vec<(usize, usize)> {
+// Get a list of all posible targets
+fn get_targets(unit_map: &BTreeMap<(usize, usize), Unit>, unit: &Unit) -> Vec<(usize, usize)> {
     let mut output: Vec<(usize, usize)> = Vec::new();
     for key in unit_map.keys() {
         if !same_faction(&unit.faction, &unit_map[key].faction) {
@@ -71,18 +73,20 @@ fn get_targets(grid: &Vec<Vec<Location>>, unit_map: &BTreeMap<(usize, usize), Un
     output
 }
 
+// Check if a location if open for travel
 fn is_open(grid: &Vec<Vec<Location>>, unit_map: &BTreeMap<(usize, usize), Unit>, target: (usize, usize)) -> bool {
-    if let Location::Open = grid[target.0][target.1] {
-        if !unit_map.contains_key(&target) {
+    let rows = grid.len();
+    let cols = grid[0].len();
+    if target.0 < rows && target.1 < cols && !unit_map.contains_key(&target) {
+        if let Location::Open = grid[target.0][target.1] {
             return true;
         }
     }
     false
 }
 
+// Get in-range locations around given targets
 fn get_in_range(grid: &Vec<Vec<Location>>, unit_map: &BTreeMap<(usize, usize), Unit>, targets: Vec<(usize, usize)>) -> Vec<(usize, usize)> {
-    let rows = grid.len();
-    let cols = grid[0].len();
     let mut output: Vec<(usize, usize)> = Vec::new();
     for target in targets.iter() {
         for step in &[(1,0), (0,1)] {
@@ -104,63 +108,55 @@ fn get_in_range(grid: &Vec<Vec<Location>>, unit_map: &BTreeMap<(usize, usize), U
     output
 }
 
-fn is_valid_loc(grid: &Vec<Vec<Location>>, unit_map: &BTreeMap<(usize, usize), Unit>, loc: (usize, usize)) -> bool {
-    let rows = grid.len();
-    let cols = grid[0].len();
-    if loc.0 < rows && loc.1 < cols && !unit_map.contains_key(&loc) && is_open(grid, unit_map, loc) {
-        return true;
-    }
-    false
-}
-
-fn can_reach(grid: &Vec<Vec<Location>>, unit_map: &BTreeMap<(usize, usize), Unit>, start: (usize, usize), end: (usize, usize)) -> (bool, (usize, usize, usize)) {
-    let mut queue: Vec<(usize, usize, usize)> = vec![(0, start.0, start.1)]; // use insert and pop for queue-likeness
+// Check if a given point is reachable and also return the distance from start to end
+fn can_reach_distance(grid: &Vec<Vec<Location>>, unit_map: &BTreeMap<(usize, usize), Unit>, start: (usize, usize), end: (usize, usize)) -> (bool, (usize, usize, usize)) {
+    let mut queue: Vec<(usize, usize, usize)> = vec![(0, start.0, start.1)];
     let mut visited: HashSet<(usize, usize)> = HashSet::new();
     visited.insert(start);
-    let mut count = 0;
 
-    // @Question: Should my bfs be in reading order or something?
+    // Use BFS and keep track of distance
     while !queue.is_empty() {
         let loc = queue.pop().unwrap();
         if (loc.1, loc.2) == end {
             return (true, loc);
         }
-        let new_step = (loc.0+1, loc.1+1, loc.2);
-        let new_point = (new_step.1, new_step.2);
-        if is_valid_loc(grid, unit_map, new_point) && !visited.contains(&new_point) {
-            queue.insert(0, new_step);
-            visited.insert(new_point);
+        if loc.1 > 0 {
+            let new_step = (loc.0+1, loc.1-1, loc.2);
+            let new_point = (new_step.1, new_step.2);
+            if is_open(grid, unit_map, new_point) && !visited.contains(&new_point) {
+                queue.insert(0, new_step);
+                visited.insert(new_point);
+            }
+        }
+        if loc.2 > 0 {
+            let new_step = (loc.0+1, loc.1, loc.2-1);
+            let new_point = (new_step.1, new_step.2);
+            if is_open(grid, unit_map, new_point) && !visited.contains(&new_point) {
+                queue.insert(0, new_step);
+                visited.insert(new_point);
+            }
         }
         let new_step = (loc.0+1, loc.1, loc.2+1);
         let new_point = (new_step.1, new_step.2);
-        if is_valid_loc(grid, unit_map, new_point) && !visited.contains(&new_point) {
+        if is_open(grid, unit_map, new_point) && !visited.contains(&new_point) {
             queue.insert(0, new_step);
             visited.insert(new_point);
         }
-        if loc.0 > 0 {
-            let new_step = (loc.0+1, loc.1-1, loc.2);
-            let new_point = (new_step.1, new_step.2);
-            if is_valid_loc(grid, unit_map, new_point) && !visited.contains(&new_point) {
-                queue.insert(0, new_step);
-                visited.insert(new_point);
-            }
-        }
-        if loc.1 > 0 {
-            let new_step = (loc.0+1, loc.1, loc.2-1);
-            let new_point = (new_step.1, new_step.2);
-            if is_valid_loc(grid, unit_map, new_point) && !visited.contains(&new_point) {
-                queue.insert(0, new_step);
-                visited.insert(new_point);
-            }
+        let new_step = (loc.0+1, loc.1+1, loc.2);
+        let new_point = (new_step.1, new_step.2);
+        if is_open(grid, unit_map, new_point) && !visited.contains(&new_point) {
+            queue.insert(0, new_step);
+            visited.insert(new_point);
         }
     }
-    (false, (0,0,0)) // @Question: Should I just make this an option?
+    (false, (0,0,0)) // It may have made more sense to use an optional here ...
 }
 
+// Get reachable points from the given in-range points
 fn get_reachable(grid: &Vec<Vec<Location>>, unit_map: &BTreeMap<(usize, usize), Unit>, unit: &Unit, in_range: Vec<(usize, usize)>) -> Vec<(usize, usize, usize)> {
     let mut output: Vec<(usize, usize, usize)> = Vec::new();
     for loc in in_range.iter() {
-        let (can_reach_it, dist_loc) = can_reach(grid, unit_map, unit.location, *loc);
+        let (can_reach_it, dist_loc) = can_reach_distance(grid, unit_map, unit.location, *loc);
         if can_reach_it {
             output.push(dist_loc.clone());
         }
@@ -169,68 +165,115 @@ fn get_reachable(grid: &Vec<Vec<Location>>, unit_map: &BTreeMap<(usize, usize), 
     output
 }
 
-fn loop_through_turns(grid: Vec<Vec<Location>>, mut unit_map: BTreeMap<(usize, usize), Unit>) {
-    let rows = grid.len();
-    let cols = grid[0].len();
+// Main loop for simulating rounds
+fn loop_through_turns(grid: Vec<Vec<Location>>, mut unit_map: BTreeMap<(usize, usize), Unit>) -> i32 {
+    let mut rounds: i32 = 0;
     loop {
         let keys = unit_map.keys().map(|r| r.clone()).collect::<Vec<(usize, usize)>>();
-        for (row, col) in keys.iter() {
-            let mut unit = unit_map.remove(&(*row, *col)).unwrap();
-            let attack_location = can_attack(&grid, &unit, &unit_map);
-            if let Some(loc) = attack_location {
-                unit_map.get_mut(&loc).unwrap().health -= 3; // TODO: Add code to remove units
-            } else {
-                let targets = get_targets(&grid, &unit_map, &unit);
-                println!("targets: {:?}", targets);
-                let in_range = get_in_range(&grid, &unit_map, targets);
-                println!("in_range: {:?}", in_range);
-                let reachable = get_reachable(&grid, &unit_map, &unit, in_range); // for reach reachable we should store how far that reachable location is from the current unit
-                println!("reachable: {:?}", reachable);
 
-                if reachable.is_empty() {
-                    // Do something (continue?)
-                }
-
-                let closest_reachable = reachable[0];
-                println!("closest reachable: {:?}", closest_reachable);
-
-
-                let mut next_point: Vec<(usize, usize, usize)> = Vec::new();
-                let new_point = (unit.location.0+1, unit.location.1);
-                if is_valid_loc(&grid, &unit_map, new_point) {
-                    next_point.push(can_reach(&grid, &unit_map, new_point, (closest_reachable.0, closest_reachable.1)).1);
-                }
-                let new_point = (unit.location.0, unit.location.1+1);
-                if is_valid_loc(&grid, &unit_map, new_point) {
-                    next_point.push(can_reach(&grid, &unit_map, new_point, (closest_reachable.0, closest_reachable.1)).1);
-                }
-                if unit.location.0 > 0 {
-                    let new_point = (unit.location.0-1, unit.location.1);
-                    if is_valid_loc(&grid, &unit_map, new_point) {
-                        next_point.push(can_reach(&grid, &unit_map, new_point, (closest_reachable.0, closest_reachable.1)).1);
-                    }
-                }
-                if unit.location.1 > 0 {
-                    let new_point = (unit.location.0, unit.location.1-1);
-                    if is_valid_loc(&grid, &unit_map, new_point) {
-                        next_point.push(can_reach(&grid, &unit_map, new_point, (closest_reachable.0, closest_reachable.1)).1);
-                    }
-                }
-                println!("next_point: {:?}", next_point);
-
-                // How do I figure out which way to move??? (I could just get closest reachable dist from all 4 points around the unit
-
-                //let nearest = get_nearest(&grid, reachable);
-                //let chosen = nearest[0];
-                //let move_loc = get_move_dir(&grid, &unit);
-                //move_unit(&mut unit, &grid);
-            }
-            unit_map.insert(unit.location.clone(), unit);
+        // There is a bug in the way I iterate through units, since we are looping through the keys
+        // as they existed at the start of the round there is a chance that a unit who moves into a
+        // spot of a removed unit, that it will take two actions. Here we keep track of the number
+        // of attacks each unit takes to make sure that doesn't happen and clear them out each
+        // round. There is probably a better way to do this.
+        for val in unit_map.values_mut() {
+            val.attack_action = 0;
         }
-        break;
+
+        // Loop through units for this round
+        for (row, col) in keys.iter() {
+            if !unit_map.contains_key(&(*row, *col)) {
+                continue;
+            }
+
+            // Pull out the unit at it's current location so we can operate on it
+            let mut unit = unit_map.remove(&(*row, *col)).unwrap();
+            let attack_location = can_attack(&unit, &unit_map);
+
+            // Attack if we can or try to move
+            if let Some(loc) = attack_location {
+                if unit.attack_action == 0 {
+                    unit_map.get_mut(&loc).unwrap().health -= 3;
+                    if unit_map[&loc].health <= 0 {
+                        unit_map.remove(&loc);
+                    }
+                    unit.attack_action += 1;
+                }
+            } else {
+                let targets = get_targets(&unit_map, &unit);
+
+                // If there are no targets the battle is over, return battle score
+                if targets.is_empty() {
+                    let mut health_sum: i32 = unit_map.keys().map(|k| unit_map[k].health).fold(0, |a,b| a+b);
+                    health_sum += unit.health;
+                    return health_sum * rounds;
+                }
+
+                let in_range = get_in_range(&grid, &unit_map, targets);
+                let reachable = get_reachable(&grid, &unit_map, &unit, in_range);
+
+                // If there are reachable points, move to the closest one
+                if !reachable.is_empty() {
+                    let closest_reachable = reachable[0];
+
+                    // For the closest reachable point determine which direction to move in to make
+                    // progress towards that point
+                    let mut test_points: Vec<(usize, usize, usize)> = Vec::new();
+                    let new_point = (unit.location.0+1, unit.location.1);
+                    if is_open(&grid, &unit_map, new_point) {
+                        let (_, dist_loc) = can_reach_distance(&grid, &unit_map, new_point, (closest_reachable.1, closest_reachable.2));
+                        test_points.push((dist_loc.0, new_point.0, new_point.1));
+                    }
+                    let new_point = (unit.location.0, unit.location.1+1);
+                    if is_open(&grid, &unit_map, new_point) {
+                        let (_, dist_loc) = can_reach_distance(&grid, &unit_map, new_point, (closest_reachable.1, closest_reachable.2));
+                        test_points.push((dist_loc.0, new_point.0, new_point.1));
+                    }
+                    if unit.location.0 > 0 {
+                        let new_point = (unit.location.0-1, unit.location.1);
+                        if is_open(&grid, &unit_map, new_point) {
+                            let (_, dist_loc) = can_reach_distance(&grid, &unit_map, new_point, (closest_reachable.1, closest_reachable.2));
+                            test_points.push((dist_loc.0, new_point.0, new_point.1));
+                        }
+                    }
+                    if unit.location.1 > 0 {
+                        let new_point = (unit.location.0, unit.location.1-1);
+                        if is_open(&grid, &unit_map, new_point) {
+                            let (_, dist_loc) = can_reach_distance(&grid, &unit_map, new_point, (closest_reachable.1, closest_reachable.2));
+                            test_points.push((dist_loc.0, new_point.0, new_point.1));
+                        }
+                    }
+                    test_points.sort();
+
+                    // Move the unit
+                    let point_to_move_to = (test_points[0].1, test_points[0].2);
+                    unit.location = point_to_move_to;
+
+                    // Attack if we made it to a target
+                    let attack_location = can_attack(&unit, &unit_map);
+                    if let Some(loc) = attack_location {
+                        if unit.attack_action == 0 {
+                            unit_map.get_mut(&loc).unwrap().health -= 3;
+                            if unit_map[&loc].health <= 0 {
+                                unit_map.remove(&loc);
+                            }
+                            unit.attack_action += 1;
+                        }
+                    }
+                }
+            }
+
+            // Don't re-insert the unit if it's health is gone
+            if unit.health > 0 {
+                unit_map.insert(unit.location.clone(), unit);
+            }
+        }
+        rounds += 1;
     }
 }
 
+// Matching function to determine if two factions are equal, I feel like there should be a better
+// way to do this...
 fn same_faction(a: &Faction, b: &Faction) -> bool {
     match a {
         Faction::Elf => {
@@ -256,147 +299,29 @@ fn same_faction(a: &Faction, b: &Faction) -> bool {
     };
 }
 
-fn can_attack(grid: &Vec<Vec<Location>>, unit: &Unit, unit_map: &BTreeMap<(usize, usize), Unit>) -> Option<(usize, usize)> {
+// Check to see if a given unit can attack a unit in another faction
+fn can_attack(unit: &Unit, unit_map: &BTreeMap<(usize, usize), Unit>) -> Option<(usize, usize)> {
     let row = unit.location.0;
-    let col = unit.location.0;
-    if row > 0 && unit_map.contains_key(&(row-1, col)) && same_faction(&unit_map[&(row-1, col)].faction, &unit.faction) {
-        return Some((row-1, col));
+    let col = unit.location.1;
+    let mut attack_options: Vec<(i32, usize, usize)> = Vec::new();
+    if row > 0 && unit_map.contains_key(&(row-1, col)) && !same_faction(&unit_map[&(row-1, col)].faction, &unit.faction) {
+        attack_options.push((unit_map[&(row-1, col)].health, row-1, col));
     }
-    None
+    if col > 0 && unit_map.contains_key(&(row, col-1)) && !same_faction(&unit_map[&(row, col-1)].faction, &unit.faction) {
+        attack_options.push((unit_map[&(row, col-1)].health, row, col-1));
+    }
+    if unit_map.contains_key(&(row+1, col)) && !same_faction(&unit_map[&(row+1, col)].faction, &unit.faction) {
+        attack_options.push((unit_map[&(row+1, col)].health, row+1, col));
+    }
+    if unit_map.contains_key(&(row, col+1)) && !same_faction(&unit_map[&(row, col+1)].faction, &unit.faction) {
+        attack_options.push((unit_map[&(row, col+1)].health, row, col+1));
+    }
+    if attack_options.is_empty() {
+        return None;
+    }
+    attack_options.sort();
+    return Some((attack_options[0].1, attack_options[0].2));
 }
-
-// fn get_last_remaining_cart(grid: Vec<Vec<Location>>, mut cart_map: HashMap<(usize, usize), Cart>) -> (usize, usize) {
-//     loop { // Loop/tick until there is one cart left
-//         let mut keys: Vec<(usize, usize)> = cart_map.keys().map(|k| k.clone()).collect();
-//         keys.sort();
-//         for key in keys {
-//             if cart_map.contains_key(&key) {
-//                 let mut cart = cart_map.remove(&key).unwrap();
-// 
-//                 match grid[cart.location.0][cart.location.1] {
-//                     Location::TurnRight => {
-//                         match cart.direction {
-//                             Direction::Up => {
-//                                 cart.direction = Direction::Right;
-//                             },
-//                             Direction::Down => {
-//                                 cart.direction = Direction::Left;
-//                             },
-//                             Direction::Left => {
-//                                 cart.direction = Direction::Down;
-//                             },
-//                             Direction::Right => {
-//                                 cart.direction = Direction::Up;
-//                             },
-//                         }
-//                     },
-//                     Location::TurnDown => {
-//                         match cart.direction {
-//                             Direction::Left => {
-//                                 cart.direction = Direction::Up;
-//                             },
-//                             Direction::Right => {
-//                                 cart.direction = Direction::Down;
-//                             },
-//                             Direction::Up => {
-//                                 cart.direction = Direction::Left;
-//                             },
-//                             Direction::Down => {
-//                                 cart.direction = Direction::Right;
-//                             },
-//                         }
-//                     },
-//                     Location::Intersection => {
-//                         match cart.direction {
-//                             Direction::Up => {
-//                                 match cart.intersection_action {
-//                                     IntersectionAction::Left => {
-//                                         cart.direction = Direction::Left;
-//                                         cart.intersection_action = IntersectionAction::Straight;
-//                                     },
-//                                     IntersectionAction::Straight => {
-//                                         cart.intersection_action = IntersectionAction::Right;
-//                                     },
-//                                     IntersectionAction::Right => {
-//                                         cart.direction = Direction::Right;
-//                                         cart.intersection_action = IntersectionAction::Left;
-//                                     },
-//                                 }
-//                             },
-//                             Direction::Down => {
-//                                 match cart.intersection_action {
-//                                     IntersectionAction::Left => {
-//                                         cart.direction = Direction::Right;
-//                                         cart.intersection_action = IntersectionAction::Straight;
-//                                     },
-//                                     IntersectionAction::Straight => {
-//                                         cart.intersection_action = IntersectionAction::Right;
-//                                     },
-//                                     IntersectionAction::Right => {
-//                                         cart.direction = Direction::Left;
-//                                         cart.intersection_action = IntersectionAction::Left;
-//                                     },
-//                                 }
-//                             },
-//                             Direction::Left => {
-//                                 match cart.intersection_action {
-//                                     IntersectionAction::Left => {
-//                                         cart.direction = Direction::Down;
-//                                         cart.intersection_action = IntersectionAction::Straight;
-//                                     },
-//                                     IntersectionAction::Straight => {
-//                                         cart.intersection_action = IntersectionAction::Right;
-//                                     },
-//                                     IntersectionAction::Right => {
-//                                         cart.direction = Direction::Up;
-//                                         cart.intersection_action = IntersectionAction::Left;
-//                                     },
-//                                 }
-//                             },
-//                             Direction::Right => {
-//                                 match cart.intersection_action {
-//                                     IntersectionAction::Left => {
-//                                         cart.direction = Direction::Up;
-//                                         cart.intersection_action = IntersectionAction::Straight;
-//                                     },
-//                                     IntersectionAction::Straight => {
-//                                         cart.intersection_action = IntersectionAction::Right;
-//                                     },
-//                                     IntersectionAction::Right => {
-//                                         cart.direction = Direction::Down;
-//                                         cart.intersection_action = IntersectionAction::Left;
-//                                     },
-//                                 }
-//                             },
-//                         }
-//                     },
-//                     Location::LeftRight => { },
-//                     Location::UpDown => { },
-//                     Location::Empty => {
-//                         // Carts should never be able to reach an empty location so returning debug
-//                         // bogus location
-//                         return (1234, 1234);
-//                     },
-//                 };
-//                 cart.move_it();
-// 
-//                 // Detect crash
-//                 if cart_map.contains_key(&cart.location) {
-//                     cart_map.remove(&cart.location);
-//                 } else {
-//                     cart_map.insert(cart.location, cart);
-//                 }
-//             }
-//         }
-// 
-//         // Return if there is only 1 cart at the end of the tick
-//         if cart_map.len() == 1 {
-//             for (k, _) in cart_map.drain() {
-//                 return k;
-//             }
-//         }
-//     }
-// }
 
 // Output what the grid currently looks like
 fn _debug_grid_print(grid: &Vec<Vec<Location>>, unit_map: &BTreeMap<(usize, usize), Unit>) {
@@ -427,22 +352,8 @@ fn _debug_grid_print(grid: &Vec<Vec<Location>>, unit_map: &BTreeMap<(usize, usiz
     }
 }
 
-// // Convert row/col tuples to x/y tuples
-// fn to_xy(row_col: (usize, usize)) -> (usize, usize) {
-//     (row_col.1, row_col.0)
-// }
-
 fn main() {
-    //let (mut grid, mut unit_map) = parse_input("input.txt");
-    let (mut grid, mut unit_map) = parse_input("input.test.txt");
-    loop_through_turns(grid, unit_map);
-
-    // println!("{:?}", unit_map[&(1,14)]);
-    // let mut u = unit_map.remove(&(1,14)).unwrap();
-    // u.location.1 += 2;
-    // unit_map.insert(u.location, u);
-    // _debug_grid_print(&grid, &unit_map);
-
-    //println!("Last cart location: {:?}", to_xy(get_last_remaining_cart(grid, cart_map)));
+    let (grid, unit_map) = parse_input("input.txt");
+    println!("Battle score: {}", loop_through_turns(grid, unit_map));
 }
 
