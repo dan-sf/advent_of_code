@@ -1,7 +1,6 @@
 use std::fs;
 use std::io;
 use std::io::BufRead;
-use std::collections::HashMap;
 
 #[derive(Debug)]
 struct RegChange {
@@ -10,90 +9,24 @@ struct RegChange {
     instruction: Vec<i32>,
 }
 
-#[derive(Debug)]
-enum Op {
-    addr,
-    addi,
-    mulr,
-    muli,
-    banr,
-    bani,
-    borr,
-    bori,
-    setr,
-    seti,
-    gtir,
-    gtri,
-    gtrr,
-    eqir,
-    eqri,
-    eqrr,
-}
-
-fn generate_unknown_op_list() -> Vec<HashSet<Op>> {
-    output: Vec<HashSet<Op>> = Vec::new();
-    for i in 0..16 {
-        let mut operations: HashSet<Op> = HashSet::new();
-        operations.insert(Op::addr);
-        operations.insert(Op::addi);
-        operations.insert(Op::mulr);
-        operations.insert(Op::muli);
-        operations.insert(Op::banr);
-        operations.insert(Op::bani);
-        operations.insert(Op::borr);
-        operations.insert(Op::bori);
-        operations.insert(Op::setr);
-        operations.insert(Op::seti);
-        operations.insert(Op::gtir);
-        operations.insert(Op::gtri);
-        operations.insert(Op::gtrr);
-        operations.insert(Op::eqir);
-        operations.insert(Op::eqri);
-        operations.insert(Op::eqrr);
-        output.push(operations);
-    }
-    output
-}
-
-fn generate_op_list() -> Vec<Op> {
-    output: Vec<Op> = Vec::new();
-    output.push(Op::addr);
-    output.push(Op::addi);
-    output.push(Op::mulr);
-    output.push(Op::muli);
-    output.push(Op::banr);
-    output.push(Op::bani);
-    output.push(Op::borr);
-    output.push(Op::bori);
-    output.push(Op::setr);
-    output.push(Op::seti);
-    output.push(Op::gtir);
-    output.push(Op::gtri);
-    output.push(Op::gtrr);
-    output.push(Op::eqir);
-    output.push(Op::eqri);
-    output.push(Op::eqrr);
-    output
-}
-
 fn get_possible_ops(rc: &RegChange) -> Vec<bool> {
-    let mut output: Vec<bool> = vec![false;15];
-    output.push(rc.before[1] + rc.before[2] == rc.after[3]); // addr
-    output.push(rc.before[1] + rc.instruction[2] == rc.after[3]); // addi
-    output.push(rc.before[1] * rc.before[2] == rc.after[3]); // mulr
-    output.push(rc.before[1] * rc.instruction[2] == rc.after[3]); // muli
-    output.push(rc.before[1] & rc.before[2] == rc.after[3]); // banr
-    output.push(rc.before[1] & rc.instruction[2] == rc.after[3]); // bani
-    output.push(rc.before[1] | rc.before[2] == rc.after[3]); // borr
-    output.push(rc.before[1] | rc.instruction[2] == rc.after[3]); // bori
-    output.push(rc.before[1] == rc.after[3]); // setr
-    output.push(rc.instruction[1] == rc.after[3]); // seti
-    output.push(rc.instruction[1] > rc.before[2] && rc.after[3] == 1); // gtir
-    output.push(rc.before[1] > rc.instruction[2] && rc.after[3] == 1); // gtri
-    output.push(rc.before[1] > rc.before[2] && rc.after[3] == 1); // gtrr
-    output.push(rc.instruction[1] == rc.before[2] && rc.after[3] == 1); // eqir
-    output.push(rc.before[1] == rc.instruction[2] && rc.after[3] == 1); // eqri
-    output.push(rc.before[1] == rc.before[2] && rc.after[3] == 1); // eqrr
+    let mut output: Vec<bool> = Vec::new();
+    output.push(rc.before[rc.instruction[1] as usize] + rc.before[rc.instruction[2] as usize] == rc.after[rc.instruction[3] as usize]); // addr
+    output.push(rc.before[rc.instruction[1] as usize] + rc.instruction[2] == rc.after[rc.instruction[3] as usize]); // addi
+    output.push(rc.before[rc.instruction[1] as usize] * rc.before[rc.instruction[2] as usize] == rc.after[rc.instruction[3] as usize]); // mulr
+    output.push(rc.before[rc.instruction[1] as usize] * rc.instruction[2] == rc.after[rc.instruction[3] as usize]); // muli
+    output.push(rc.before[rc.instruction[1] as usize] & rc.before[rc.instruction[2] as usize] == rc.after[rc.instruction[3] as usize]); // banr
+    output.push(rc.before[rc.instruction[1] as usize] & rc.instruction[2] == rc.after[rc.instruction[3] as usize]); // bani
+    output.push(rc.before[rc.instruction[1] as usize] | rc.before[rc.instruction[2] as usize] == rc.after[rc.instruction[3] as usize]); // borr
+    output.push(rc.before[rc.instruction[1] as usize] | rc.instruction[2] == rc.after[rc.instruction[3] as usize]); // bori
+    output.push(rc.before[rc.instruction[1] as usize] == rc.after[rc.instruction[3] as usize]); // setr
+    output.push(rc.instruction[1] == rc.after[rc.instruction[3] as usize]); // seti
+    output.push(rc.instruction[1] > rc.before[rc.instruction[2] as usize] && rc.after[rc.instruction[3] as usize] == 1); // gtir
+    output.push(rc.before[rc.instruction[1] as usize] > rc.instruction[2] && rc.after[rc.instruction[3] as usize] == 1); // gtri
+    output.push(rc.before[rc.instruction[1] as usize] > rc.before[rc.instruction[2] as usize] && rc.after[rc.instruction[3] as usize] == 1); // gtrr
+    output.push(rc.instruction[1] == rc.before[rc.instruction[2] as usize] && rc.after[rc.instruction[3] as usize] == 1); // eqir
+    output.push(rc.before[rc.instruction[1] as usize] == rc.instruction[2] && rc.after[rc.instruction[3] as usize] == 1); // eqri
+    output.push(rc.before[rc.instruction[1] as usize] == rc.before[rc.instruction[2] as usize] && rc.after[rc.instruction[3] as usize] == 1); // eqrr
     output
 }
 
@@ -143,30 +76,24 @@ fn parse_input(path: &str) -> (Vec<RegChange>, Vec<Vec<i32>>) {
         example_program.push(instruction);
     }
 
-    println!("reg_events: {:?}, example_program: {}", reg_events.len(), example_program.len());
     (reg_events, example_program)
 }
 
-fn reduce_op_codes(reg_events: Vec<RegChange>, uk_op_list: Vec<HashSet<Op>>, op_list: Vec<Op>) -> Vec<Op> {
+fn get_many_op_sample_count(reg_events: Vec<RegChange>) -> i32 {
+    let mut output = 0;
     for event in reg_events.iter() {
-        let inst_index = event.instruction[0] as usize;
         let possible_ops = get_possible_ops(event);
-        for (i, po) in possible_ops.enumerate() {
-            if !po {
-                // remove that op from the options
-                if uk_op_list[inst_index].contains(op_list[i]) {
-                    uk_op_list[inst_index].remove(op_list[i]);
-                }
-            }
+        let count = possible_ops.iter().map(|r| if *r { 1 } else { 0 }).fold(0, |a,b| a+b);
+        if count >= 3 {
+            output += 1;
         }
     }
-    println!("{:?}", uk_op_list);
-    return vec![Op::addr];
-
+    return output
 }
 
 fn main() {
-    // Create instruction mapping using bit flags start at 16-1 (1<<4 - 1) for all flags
-    let (reg_events, example_program) = parse_input("input.txt");
+    let (reg_events, _example_program) = parse_input("input.txt");
+    let output = get_many_op_sample_count(reg_events);
+    println!("Three or more op code count: {}", output);
 }
 
