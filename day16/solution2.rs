@@ -151,15 +151,10 @@ fn parse_input(path: &str) -> (Vec<RegChange>, Vec<Vec<i32>>) {
     (reg_events, example_program)
 }
 
-fn reduce_op_codes(reg_events: Vec<RegChange>, mut uk_op_list: Vec<HashSet<Op>>, op_list: Vec<Op>) -> Vec<HashSet<Op>> {
-    let mut output = 0;
+fn reduce_op_codes(reg_events: Vec<RegChange>, mut uk_op_list: Vec<HashSet<Op>>, op_list: Vec<Op>) -> Vec<Op> {
     for event in reg_events.iter() {
         let inst_index = event.instruction[0] as usize;
-        let possible_ops = get_possible_ops(event);
-        let count = possible_ops.iter().map(|r| if *r { 1 } else { 0 }).fold(0, |a,b| a+b);
-        if count >= 3 {
-            output += 1;
-        }
+        let possible_ops = get_possible_ops(event); // Seems correct up to here (unless I messed up ordering)
         for (i, po) in possible_ops.iter().enumerate() {
             if !po {
                 // remove that op from the options
@@ -170,9 +165,9 @@ fn reduce_op_codes(reg_events: Vec<RegChange>, mut uk_op_list: Vec<HashSet<Op>>,
         }
     }
 
-                for (j, val) in uk_op_list.iter().enumerate() {
-                    println!("i: {}, v: {:?}", j, val);
-                }
+    for (j, val) in uk_op_list.iter().enumerate() {
+        println!("i: {}, v: {:?}", j, val);
+    }
 
     let mut count = 0;
     loop {
@@ -182,7 +177,7 @@ fn reduce_op_codes(reg_events: Vec<RegChange>, mut uk_op_list: Vec<HashSet<Op>>,
                 for uk in uk_op_list[i].drain() {
                     removal = uk;
                 }
-                println!("it: {:?}, it: {:?}", uk_op_list[i], op_list[i]);
+                //println!("it: {:?}, it: {:?}", uk_op_list[i], op_list[i]);
                 for (j, val) in uk_op_list.iter_mut().enumerate() {
                     if j != i {
                         //println!("Removed: {:?}", val.remove(&op_list[i]));
@@ -194,36 +189,60 @@ fn reduce_op_codes(reg_events: Vec<RegChange>, mut uk_op_list: Vec<HashSet<Op>>,
                 uk_op_list[i].insert(removal);
             }
         }
-                println!("map: {:?}", uk_op_list);
-        if uk_op_list.iter().all(|r| r.len() == 1) {
+                //println!("map: {:?}", uk_op_list);
+        if uk_op_list.iter().all(|r| r.len() <= 1) {
             break;
         }
-        if count > 20 {
-            break;
-        }
-        count+=1;
     }
 
+    let mut output: Vec<Op> = Vec::new();
 
+    for uk in uk_op_list.iter_mut() {
+        output.push(uk.drain().collect::<Vec<Op>>().pop().unwrap());
+    }
+    return output;
+}
 
+fn operate(reg: &mut Vec<i32>, op: &Vec<i32>, op_codes: &Vec<Op>) {
+    match op_codes[op[0] as usize] {
+        Op::addr => { reg[op[3] as usize] = reg[op[1] as usize] + reg[op[2] as usize]; },
+        Op::addi => { reg[op[3] as usize] = reg[op[1] as usize] + op[2]; },
+        Op::mulr => { reg[op[3] as usize] = reg[op[1] as usize] * reg[op[2] as usize]; },
+        Op::muli => { reg[op[3] as usize] = reg[op[1] as usize] * op[2]; },
+        Op::banr => { reg[op[3] as usize] = reg[op[1] as usize] & reg[op[2] as usize]; },
+        Op::bani => { reg[op[3] as usize] = reg[op[1] as usize] & op[2]; },
+        Op::borr => { reg[op[3] as usize] = reg[op[1] as usize] | reg[op[2] as usize]; },
+        Op::bori => { reg[op[3] as usize] = reg[op[1] as usize] | op[2]; },
+        Op::setr => { reg[op[3] as usize] = reg[op[1] as usize]; },
+        Op::seti => { reg[op[3] as usize] = op[1]; },
+        Op::gtir => { if op[1] > reg[op[2] as usize] { reg[op[3] as usize] = 1; } else { reg[op[3] as usize] = 0; } },
+        Op::gtri => { if reg[op[1] as usize] > op[2] { reg[op[3] as usize] = 1; } else { reg[op[3] as usize] = 0; } },
+        Op::gtrr => { if reg[op[1] as usize] > reg[op[2] as usize] { reg[op[3] as usize] = 1; } else { reg[op[3] as usize] = 0; } },
+        Op::eqir => { if op[1] == reg[op[2] as usize] { reg[op[3] as usize] = 1; } else { reg[op[3] as usize] = 0; } },
+        Op::eqri => { if reg[op[1] as usize] == op[2] { reg[op[3] as usize] = 1; } else { reg[op[3] as usize] = 0; } },
+        Op::eqrr => { if reg[op[1] as usize] == reg[op[2] as usize] { reg[op[3] as usize] = 1; } else { reg[op[3] as usize] = 0; } },
+    };
+}
 
-    //for i in uk_op_list.iter() {
-    //println!("{:?}", i); //uk_op_list);
-    //}
-    return uk_op_list;
-    //return output
+fn run_program(program: Vec<Vec<i32>>, op_codes: Vec<Op>) -> i32 {
+    let mut reg = vec![0;4];
+    for op in program.iter() {
+        operate(&mut reg, op, &op_codes);
+        println!("reg: {:?}, op: {:?}, op_code: {:?}", reg, op, op_codes[op[0] as usize]);
+    }
+    reg[0]
 }
 
 fn main() {
-    let (reg_events, _example_program) = parse_input("input.txt");
+    let (reg_events, example_program) = parse_input("input.txt");
     //let (reg_events, _example_program) = parse_input("input.test.txt");
     let uk_op_list = generate_unknown_op_list();
     let op_list = generate_op_list();
     //println!("uk_op_list: {:?}, op_list: {:?}", uk_op_list, op_list);
-    let output = reduce_op_codes(reg_events, uk_op_list, op_list);
+    let op_codes = reduce_op_codes(reg_events, uk_op_list, op_list);
     //println!("Three or more op code count: {}", output.iter().map(|r| if r.len() >= 3 { 1 } else { 0 }).fold(0, |a,b| a+b));
-    println!("Three or more op code count: {:?}", output);
-    //println!("{:?}", output);
+    println!("Op codes: {:?}", op_codes);
+    let output = run_program(example_program, op_codes);
+    println!("{:?}", output);
 }
-
 
