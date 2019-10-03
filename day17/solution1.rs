@@ -4,18 +4,32 @@ use std::io::BufRead;
 use std::collections::HashSet;
 
 fn get_points(point_a: &str, point_b: &str) -> Vec<Point> {
-    let (a_x_y, a_val) = point_a.split('=').collect();
-    let (b_x_y, b_val) = point_b.split('=').collect();
-    if a_x_y == 'x' {
-        if a_val.contains('.') {
-            let (start, end) = a_val.split("..").map(|r| r.parse::<usize>()).collect();
+    let mut output: Vec<Point> = Vec::new();
+    let split_a = point_a.split('=').collect::<Vec<&str>>();
+    let (a_x_y, a_val) = (split_a[0], split_a[1]);
+    let split_b = point_b.split('=').collect::<Vec<&str>>();
+    let (b_x_y, b_val) = (split_b[0], split_b[1]);
+    if a_x_y == "x" {
+        let start_end: Vec<usize> = b_val.split("..").map(|r| r.parse::<usize>().unwrap()).collect();
+        for i in start_end[0]..=start_end[1] {
+            output.push(Point { x: a_val.parse::<usize>().unwrap(), y: i });
+        }
+    } else {
+        let start_end: Vec<usize> = b_val.split("..").map(|r| r.parse::<usize>().unwrap()).collect();
+        for i in start_end[0]..=start_end[1] {
+            output.push(Point { x: i, y: a_val.parse::<usize>().unwrap() });
+        }
+    }
+    output
+}
 
+#[derive(Debug)]
 struct Point {
     x: usize,
     y: usize,
 }
 
-fn parse_input(path: &str) -> (Vec<RegChange>, Vec<Vec<i32>>) {
+fn parse_input(path: &str) -> Vec<Point> {
     let input = fs::File::open(path)
         .expect("Something went wrong reading the file");
     let reader = io::BufReader::new(input);
@@ -23,11 +37,11 @@ fn parse_input(path: &str) -> (Vec<RegChange>, Vec<Vec<i32>>) {
     let mut points: Vec<(usize, usize)> = Vec::new();
 
     for line in reader.lines() {
-        line = line.unwrap();
+        line = line;
         point = line.replace(" ", "").split(',');
         points.extend(get_points(point[0], point[1]));
     }
-
+    points
 }
 
 // x=452, y=1077..1087
@@ -76,7 +90,9 @@ fn parse_input(path: &str) -> (Vec<RegChange>, Vec<Vec<i32>>) {
 
 fn main() {
     let points = parse_input("input.txt");
-    //println!("points: {:?}", points);
+    println!("points: {:?}", points);
+    println!("p: {:?}", get_points("x=452", "y=1077..1087"));
+    println!("p: {:?}", get_points("y=45", "x=10..15"));
 }
 
 
