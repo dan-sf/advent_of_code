@@ -34,65 +34,47 @@ fn parse_input(path: &str) -> Vec<Point> {
         .expect("Something went wrong reading the file");
     let reader = io::BufReader::new(input);
 
-    let mut points: Vec<(usize, usize)> = Vec::new();
+    let mut points: Vec<Point> = Vec::new();
 
     for line in reader.lines() {
-        line = line;
-        point = line.replace(" ", "").split(',');
+        let line = line.unwrap();
+        let line = line.replace(" ", "");
+        let point: Vec<&str> = line.split(',').collect();
         points.extend(get_points(point[0], point[1]));
     }
     points
 }
 
-// x=452, y=1077..1087
-// y=782, x=505..509
+#[derive(Debug, Clone)]
+enum Location {
+    Sand,
+    Clay,
+    Water,
+}
 
-    // let lines: Vec<String> = reader.lines().map(|r| r.unwrap()).collect();
-    // let mut lines_iter = lines.iter();
+fn create_graph(points: Vec<Point>) -> Vec<Vec<Location>> {
+    let max_x = points.iter().map(|r| r.x).max().unwrap();
+    let min_x = points.iter().map(|r| r.x).min().unwrap();
+    let max_y = points.iter().map(|r| r.y).max().unwrap();
 
-    // // Parse the first part of the input
-    // while let Some(line) = lines_iter.next() {
-    //     if line.is_empty() {
-    //         break;
-    //     }
+    let mut graph: Vec<Vec<Location>> = vec![vec![Location::Sand; max_x - min_x + 3]; max_y + 1];
 
-    //     let before = &line.chars().collect::<Vec<char>>()[9..line.len()-1];
-    //     let before = before.iter().filter(|c| !c.is_whitespace() && !(c == &&',')).collect::<Vec<&char>>();
-    //     let before = before.iter().map(|c| c.to_string().parse::<i32>().unwrap()).collect::<Vec<i32>>();
+    for point in points.iter() {
+        graph[point.y][point.x - min_x + 1] = Location::Clay;
+    }
 
-    //     let instruction = lines_iter.next().unwrap().split(' ').map(|c| c.parse::<i32>().unwrap()).collect::<Vec<i32>>();
-
-    //     let after = &lines_iter.next().unwrap().chars().collect::<Vec<char>>()[9..line.len()-1];
-    //     let after = after.iter().filter(|c| !c.is_whitespace() && !(c == &&',')).collect::<Vec<&char>>();
-    //     let after = after.iter().map(|c| c.to_string().parse::<i32>().unwrap()).collect::<Vec<i32>>();
-
-    //     let _empty = lines_iter.next().unwrap();
-
-    //     reg_events.push(
-    //         RegChange {
-    //             before: before,
-    //             instruction: instruction,
-    //             after: after,
-    //         });
-    // }
-
-    // // Parse the second part of the input
-    // while let Some(line) = lines_iter.next() {
-    //     if line.is_empty() {
-    //         continue;
-    //     }
-    //     let instruction = line.split(' ').map(|c| c.parse::<i32>().unwrap()).collect::<Vec<i32>>();
-    //     example_program.push(instruction);
-    // }
-
-    // //println!("reg_events: {:?}, example_program: {}", reg_events.len(), example_program.len());
-    // (reg_events, example_program)
+    graph
+}
 
 fn main() {
     let points = parse_input("input.txt");
-    println!("points: {:?}", points);
+    println!("points: {:?}", points.len());
+    println!("max x: {:?}, min x: {:?}", points.iter().map(|r| r.x).max(), points.iter().map(|r| r.x).min());
+    println!("max y: {:?}, min y: {:?}", points.iter().map(|r| r.y).max(), points.iter().map(|r| r.y).min());
     println!("p: {:?}", get_points("x=452", "y=1077..1087"));
     println!("p: {:?}", get_points("y=45", "x=10..15"));
+    // create graph ...
+    let mut graph = create_graph(points);
+    println!("graph: {:?}", graph);
 }
-
 
