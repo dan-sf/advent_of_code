@@ -49,21 +49,46 @@ fn parse_input(path: &str) -> Vec<Point> {
 enum Location {
     Sand,
     Clay,
-    Water,
+    WaterSettled,
+    WaterFlowing,
 }
 
-fn create_graph(points: Vec<Point>) -> Vec<Vec<Location>> {
+fn create_graph(points: Vec<Point>) -> (Point, Vec<Vec<Location>>) {
     let max_x = points.iter().map(|r| r.x).max().unwrap();
     let min_x = points.iter().map(|r| r.x).min().unwrap();
     let max_y = points.iter().map(|r| r.y).max().unwrap();
 
     let mut graph: Vec<Vec<Location>> = vec![vec![Location::Sand; max_x - min_x + 3]; max_y + 1];
+    let start = Point { x: 500 - min_x + 1, y: 0 };
 
     for point in points.iter() {
         graph[point.y][point.x - min_x + 1] = Location::Clay;
     }
 
-    graph
+    (start, graph)
+}
+
+fn flood(graph: &mut Vec<Vec<Location>>, point: Point) {
+    if point.y+2 == graph.len() {
+        graph[point.y][point.x] = Location::WaterFlowing;
+        return;
+    }
+
+    graph[point.y][point.x] = Location::WaterFlowing;
+    match graph[point.y+1][point.x] {
+        Location::Sand => { 
+            flood(graph, Point { x: point.x, y: point.y+1 });
+        },
+        Location::Clay => {
+            //print!("#");
+        }, // go left and right
+        Location::WaterSettled => {
+            //print!("~");
+        },
+        Location::WaterFlowing => {
+            //print!("|");
+        },
+    };
 }
 
 fn main() {
@@ -74,7 +99,18 @@ fn main() {
     println!("p: {:?}", get_points("x=452", "y=1077..1087"));
     println!("p: {:?}", get_points("y=45", "x=10..15"));
     // create graph ...
-    let mut graph = create_graph(points);
-    println!("graph: {:?}", graph);
+    let (start, mut graph) = create_graph(points);
+    flood(&mut graph, start);
+    for g in graph.iter() {
+        for j in g.iter() {
+            match j {
+                Location::Sand => { print!("."); },
+                Location::Clay => { print!("#"); },
+                Location::WaterSettled => { print!("~"); },
+                Location::WaterFlowing => { print!("|"); },
+            }
+        }
+        println!("");
+    }
 }
 
