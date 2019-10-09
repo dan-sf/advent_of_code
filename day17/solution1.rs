@@ -121,6 +121,13 @@ fn flood(graph: &mut Vec<Vec<Location>>, point: Point) {
             graph[point.y][point.x+right] = Location::WaterSettled;
             right += 1;
         }
+        while let Location::Clay = graph[point.y+1][point.x+right] {
+            if let Location::Clay = graph[point.y][point.x+right] {
+                break;
+            }
+            graph[point.y][point.x+right] = Location::WaterSettled;
+            right += 1;
+        }
     }
 
     //_debug_graph_print(&graph);
@@ -128,7 +135,7 @@ fn flood(graph: &mut Vec<Vec<Location>>, point: Point) {
     let mut right = 0;
     while let Location::WaterSettled = graph[point.y+1][point.x+right] {
         if let Location::Sand = graph[point.y][point.x+right+1] {
-            if let Location::Clay = graph[point.y+1][point.x+right+1] {
+            if let (Location::Clay, Location::Sand, Location::Sand) = (graph[point.y+1][point.x+right+1].clone(), graph[point.y][point.x+right+2].clone(), graph[point.y+1][point.x+right+2].clone()) {
                 graph[point.y][point.x] = Location::WaterFlowing;
                 graph[point.y][point.x+right+1] = Location::WaterFlowing;
 
@@ -179,7 +186,8 @@ fn flood(graph: &mut Vec<Vec<Location>>, point: Point) {
         let mut left = 0;
         while let Location::WaterSettled = graph[point.y+1][point.x-left] {
             if let Location::Sand = graph[point.y][point.x-left-1] {
-                if let Location::Clay = graph[point.y+1][point.x-left-1] {
+                if let (Location::Clay, Location::Sand, Location::Sand) = (graph[point.y+1][point.x-left-1].clone(), graph[point.y][point.x-left-2].clone(), graph[point.y+1][point.x-left-2].clone()) {
+                //if let Location::Clay = graph[point.y+1][point.x-left-1] {
                     graph[point.y][point.x] = Location::WaterFlowing;
                     graph[point.y][point.x-left-1] = Location::WaterFlowing;
                     water_drop_locations.push(Point { y: point.y, x: point.x-left-2 });
