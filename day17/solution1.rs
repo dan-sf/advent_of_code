@@ -45,7 +45,7 @@ fn parse_input(path: &str) -> Vec<Point> {
     points
 }
 
-#[derive(Debug, Clone)]
+#[derive(Debug, Clone, Copy)]
 enum Location {
     Sand,
     Clay,
@@ -66,6 +66,16 @@ fn create_graph(points: Vec<Point>) -> (Point, Vec<Vec<Location>>) {
     }
 
     (start, graph)
+}
+
+fn or_match(input_location: Location, location_a: Location, location_b: Location) -> bool {
+    if let input_location = location_a {
+        return true;
+    }
+    if let input_location = location_b {
+        return true;
+    }
+    false
 }
 
 fn flood(graph: &mut Vec<Vec<Location>>, point: Point) {
@@ -106,7 +116,6 @@ fn flood(graph: &mut Vec<Vec<Location>>, point: Point) {
         },
     };
 
-
     let mut water_drop_locations: Vec<Point> = Vec::new();
     let mut overflow = false;
 
@@ -114,60 +123,77 @@ fn flood(graph: &mut Vec<Vec<Location>>, point: Point) {
     if let Location::WaterSettled = graph[point.y+1][point.x] {
         graph[point.y][point.x] = Location::WaterSettled;
         let mut right = 0;
-        while let Location::WaterSettled = graph[point.y+1][point.x+right] {
+
+        //while let Location::WaterSettled = graph[point.y+1][point.x+right] {
+        while or_match(graph[point.y+1][point.x+right], Location::WaterSettled, Location::Clay) {
+            _debug_graph_print(&graph);
+
             if let Location::Clay = graph[point.y][point.x+right] {
+                break;
+            }
+
+            if let (Location::WaterSettled, Location::Sand, Location::Clay, Location::Sand) = 
+                (graph[point.y][point.x+right-1], graph[point.y][point.x+right], graph[point.y+1][point.x+right], graph[point.y+1][point.x+right+1]) {
+                water_drop_locations.push(Point { y: point.y, x: point.x+right });
+                right -= 1;
+                while let Location::WaterSettled = graph[point.y][point.x+right] {
+                    graph[point.y][point.x+right] = Location::WaterFlowing;
+                    if right > 0 {
+                        right -= 1;
+                    }
+                }
                 break;
             }
             graph[point.y][point.x+right] = Location::WaterSettled;
             right += 1;
         }
-        while let Location::Clay = graph[point.y+1][point.x+right] {
-            if let Location::Clay = graph[point.y][point.x+right] {
-                break;
-            }
-            graph[point.y][point.x+right] = Location::WaterSettled;
-            right += 1;
-        }
+        //while let Location::Clay = graph[point.y+1][point.x+right] {
+        //    if let Location::Clay = graph[point.y][point.x+right] {
+        //        break;
+        //    }
+        //    graph[point.y][point.x+right] = Location::WaterSettled;
+        //    right += 1;
+        //}
     }
 
     //_debug_graph_print(&graph);
 
-    let mut right = 0;
-    while let Location::WaterSettled = graph[point.y+1][point.x+right] {
-        if let Location::Sand = graph[point.y][point.x+right+1] {
-            if let (Location::Clay, Location::Sand, Location::Sand) = (graph[point.y+1][point.x+right+1].clone(), graph[point.y][point.x+right+2].clone(), graph[point.y+1][point.x+right+2].clone()) {
-                graph[point.y][point.x] = Location::WaterFlowing;
-                graph[point.y][point.x+right+1] = Location::WaterFlowing;
+    //let mut right = 0;
+    //while let Location::WaterSettled = graph[point.y+1][point.x+right] {
+    //    if let Location::Sand = graph[point.y][point.x+right+1] {
+    //        if let (Location::Clay, Location::Sand, Location::Sand) = (graph[point.y+1][point.x+right+1].clone(), graph[point.y][point.x+right+2].clone(), graph[point.y+1][point.x+right+2].clone()) {
+    //            graph[point.y][point.x] = Location::WaterFlowing;
+    //            graph[point.y][point.x+right+1] = Location::WaterFlowing;
 
-                //_debug_graph_print(&graph);
+    //            //_debug_graph_print(&graph);
 
-                water_drop_locations.push(Point { y: point.y, x: point.x+right+2 });
-                while right > 0 {
-                    graph[point.y][point.x+right] = Location::WaterFlowing;
-                    right -= 1;
-                }
-                while let Location::WaterSettled = graph[point.y+1][point.x-right] {
-                    graph[point.y][point.x-right] = Location::WaterFlowing;
-                    right += 1;
-                }
-                //_debug_graph_print(&graph);
+    //            water_drop_locations.push(Point { y: point.y, x: point.x+right+2 });
+    //            while right > 0 {
+    //                graph[point.y][point.x+right] = Location::WaterFlowing;
+    //                right -= 1;
+    //            }
+    //            while let Location::WaterSettled = graph[point.y+1][point.x-right] {
+    //                graph[point.y][point.x-right] = Location::WaterFlowing;
+    //                right += 1;
+    //            }
+    //            //_debug_graph_print(&graph);
 
-                //println!("right: {}", right);
-                if let Location::Sand = graph[point.y][point.x-right] {
-                    //println!("HERE: {:?}", point);
-                    if let Location::Clay = graph[point.y+1][point.x-right] {
-                        graph[point.y][point.x-right] = Location::WaterFlowing;
-                        water_drop_locations.push(Point { y: point.y, x: point.x-right-1 });
-                    }
-                }
+    //            //println!("right: {}", right);
+    //            if let Location::Sand = graph[point.y][point.x-right] {
+    //                //println!("HERE: {:?}", point);
+    //                if let Location::Clay = graph[point.y+1][point.x-right] {
+    //                    graph[point.y][point.x-right] = Location::WaterFlowing;
+    //                    water_drop_locations.push(Point { y: point.y, x: point.x-right-1 });
+    //                }
+    //            }
 
-                overflow = true;
+    //            overflow = true;
 
-                break;
-            }
-        }
-        right += 1;
-    }
+    //            break;
+    //        }
+    //    }
+    //    right += 1;
+    //}
 
     // Fill left
     if !overflow {
@@ -239,8 +265,8 @@ fn _debug_graph_print(graph: &Vec<Vec<Location>>) {
 }
 
 fn main() {
-    let points = parse_input("input.txt");
-    //let points = parse_input("input.test.txt");
+    //let points = parse_input("input.txt");
+    let points = parse_input("input.test.txt");
     //println!("points: {:?}", points.len());
     //println!("max x: {:?}, min x: {:?}", points.iter().map(|r| r.x).max(), points.iter().map(|r| r.x).min());
     //println!("max y: {:?}, min y: {:?}", points.iter().map(|r| r.y).max(), points.iter().map(|r| r.y).min());
