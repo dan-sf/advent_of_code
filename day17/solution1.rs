@@ -78,6 +78,47 @@ fn or_match(input_location: Location, location_a: Location, location_b: Location
     false
 }
 
+fn make_level_flowing(graph: &mut Vec<Vec<Location>>, left: bool, point: Point) -> Option<Point> {
+    fn sum_it(a: usize, b: usize, minus: bool) -> usize {
+        if minus {
+            return a - b;
+        }
+        a + b
+    }
+
+    let mut output = None;
+    let mut direction = 0;
+    loop {
+        let pattern = (
+            Location::WaterSettled,
+            Location::Sand,
+            Location::Clay,
+            Location::Sand
+        );
+        let one_past_x = sum_it(point.x, 1, left);
+        let check = (
+            graph[point.y][sum_it(one_past_x, direction, left)],
+            graph[point.y][sum_it(point.x, direction, left)],
+            graph[point.y+1][sum_it(point.x, direction, left)],
+            graph[point.y+1][sum_it(one_past_x, direction, left)]
+        );
+        if let pattern = check {
+            output = Some(Point { y: point.y, x: sum_it(point.x, direction, left) });
+            break;
+        }
+        if let Location::Clay = graph[point.y][sum_it(point.x, direction, left)] {
+            break;
+        }
+
+        println!("HERE");
+
+        graph[point.y][sum_it(point.x, direction, left)] = Location::WaterFlowing;
+        direction += 1;
+    }
+
+    output
+}
+
 fn flood(graph: &mut Vec<Vec<Location>>, point: Point) {
     if point.y+1 == graph.len() {
         graph[point.y][point.x] = Location::WaterFlowing;
@@ -135,13 +176,21 @@ fn flood(graph: &mut Vec<Vec<Location>>, point: Point) {
             if let (Location::WaterSettled, Location::Sand, Location::Clay, Location::Sand) = 
                 (graph[point.y][point.x+right-1], graph[point.y][point.x+right], graph[point.y+1][point.x+right], graph[point.y+1][point.x+right+1]) {
                 water_drop_locations.push(Point { y: point.y, x: point.x+right });
-                right -= 1;
-                while let Location::WaterSettled = graph[point.y][point.x+right] {
-                    graph[point.y][point.x+right] = Location::WaterFlowing;
-                    if right > 0 {
-                        right -= 1;
-                    }
-                }
+                //right -= 1;
+
+
+                let start_at = Point { y: point.y, x: point.x+right };
+                let start_at2 = Point { y: point.y, x: point.x+right };
+        println!("start: {:?}, gp: {:?}", start_at, graph[start_at.y][start_at.x]);
+                make_level_flowing(graph, true, start_at);
+        println!("start: {:?}, gp: {:?}", start_at2, graph[start_at2.y][start_at2.x]);
+
+                //while let Location::WaterSettled = graph[point.y][point.x+right] {
+                //    graph[point.y][point.x+right] = Location::WaterFlowing;
+                //    if right > 0 {
+                //        right -= 1;
+                //    }
+                //}
                 break;
             }
             graph[point.y][point.x+right] = Location::WaterSettled;
@@ -196,6 +245,7 @@ fn flood(graph: &mut Vec<Vec<Location>>, point: Point) {
     //}
 
     // Fill left
+    overflow = true;
     if !overflow {
         if let Location::WaterSettled = graph[point.y+1][point.x] {
             graph[point.y][point.x] = Location::WaterSettled;
