@@ -198,7 +198,7 @@ fn get_water_count(graph: &Vec<Vec<Location>>, min: usize, max: usize) -> usize 
 
     for i in min..=max {
         output += graph[i].iter().map(
-            |l| if let Location::WaterSettled | Location::WaterFlowing = l { 1 } else { 0 }
+            |l| if let Location::WaterSettled = l { 1 } else { 0 }
         ).fold(0, |a,b| a+b);
     }
     output
