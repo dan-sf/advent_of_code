@@ -164,12 +164,19 @@ fn main() {
     let size = 50;
     let mut landscape = parse_input("input.txt", size);
     let mut pattern: Vec<i32> = vec![];
-    for i in 0..=1064 {
+
+    // Taking a look at the data you can see a pattern emerges where the data cycles every 28
+    // iterations. Here I use 1064 since 1064%28 is 0 and will be large enough that the cycles will
+    // have started already
+    for i in 1..1064 {
         landscape = increase_time(landscape);
-        if i >= 1064-27 {
+
+        // Get last 28 values in the cycle and push them into a pattern vec that can be indexed via
+        // 'minute % 28'
+        if i >= 1064-28 {
             pattern.push(get_resource_value(&landscape));
         }
     }
-    println!("Resource value: {:?}", pattern[(1000000000%28-2) as usize]);
+    println!("Resource value: {:?}", pattern[(1000000000%28) as usize]);
 }
 
