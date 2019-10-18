@@ -94,14 +94,18 @@ fn run_program(program: Vec<(Op, i32, i32, i32)>, ip_reg: usize) -> i32 {
     let mut register: Vec<i32> = vec![0;6];
     register[0] = 1;
 
-    loop {
-        //print!("ip={} {:?} {:?} ", ip, register, program[ip as usize]);
-        //print!("{:?} ", register);
+    // I needed to look at the output of the registers to understand what the program was trying to
+    // do. It generates a large value in one of the registers then computes a sum of all the even
+    // divisors of that large number. Here I use that information to compute that number faster
+    // than the input program
+
+    // Loop for long enough that the large number is created (arbitrarily chosen)
+    for _ in 0..5000 {
         // Write the ip to the ip_reg
         register[ip_reg] = ip;
         // Execute instruction
         operate(&mut register, &program[ip as usize]);
-        //println!("{:?}", register);
+
         // Write the reg back to the ip
         ip = register[ip_reg];
         // Increase the ip by 1
@@ -110,15 +114,18 @@ fn run_program(program: Vec<(Op, i32, i32, i32)>, ip_reg: usize) -> i32 {
         if ip as usize >= program.len() {
             break;
         }
-        //println!("{}", register[0]);
     }
 
-    register[0]
+    // Compute the divisor sum
+    let large_reg = *register.iter().max().unwrap();
+    let range = 1..=(large_reg as usize);
+    let output = range.filter(|r| large_reg % (*r as i32) == 0).fold(0, |a,b| a+b);
+
+    output as i32
 }
 
 fn main() {
     let (ip_reg, program) = parse_input("input.txt");
-    //let (ip_reg, program) = parse_input("input.test.txt");
     let result = run_program(program, ip_reg);
     println!("Result: {:?}", result);
 }
