@@ -25,6 +25,7 @@ fn parse_input(path: &str) -> Vec<char> {
     let mut regex = String::new();
     input.read_to_string(&mut regex).unwrap();
 
+    let mut regex = regex.as_str().replace("|)", ")");
     let mut regex_chars: Vec<char> = regex.trim_end().chars().collect();
     regex_chars
 }
@@ -168,9 +169,9 @@ fn main() {
     let mut or_stack: Vec<char> = vec![];
     //let mut regex_chars = parse_input("input.txt");
     //let mut regex_chars = parse_input("input.test.txt");
-    let mut regex_chars = parse_input("input.test.txt2");
+    //let mut regex_chars = parse_input("input.test.txt2");
     //let mut regex_chars = parse_input("input.test.txt3");
-    //let mut regex_chars = parse_input("input.test.txt4");
+    let mut regex_chars = parse_input("input.test.txt4");
     let mut regex_iter = regex_chars.iter();
     let mut start = Position { row: size/2, col: size/2 };
 
