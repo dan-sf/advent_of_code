@@ -1,6 +1,7 @@
 use std::fs;
 use std::io::Read;
 use std::slice::Iter;
+use std::collections::HashSet;
 
 
 #[derive(Debug, Clone, Copy)]
@@ -12,12 +13,13 @@ enum Location {
     Start,
 }
 
-#[derive(Debug, Clone, Copy)]
+#[derive(Debug, Clone, Copy, Hash, PartialEq, Eq)]
 struct Position {
     row: usize,
     col: usize,
 }
 
+// Read regex to a string and return a list of chars
 fn parse_input(path: &str) -> Vec<char> {
     let mut input = fs::File::open(path)
         .expect("Something went wrong reading the file");
@@ -25,14 +27,16 @@ fn parse_input(path: &str) -> Vec<char> {
     let mut regex = String::new();
     input.read_to_string(&mut regex).unwrap();
 
-    let mut regex = regex.as_str().replace("|)", ")");
-    let mut regex_chars: Vec<char> = regex.trim_end().chars().collect();
+    let regex_chars: Vec<char> = regex.trim_end().chars().collect();
     regex_chars
 }
 
-fn navigate_map(map: &mut Vec<Vec<Location>>, mut pos: Position, or_stack: &mut Vec<char>, regex_iter: &mut Iter<char>) {
+// Recursively walk the map while iterating over the regex
+fn navigate_map(map: &mut Vec<Vec<Location>>, mut pos: Position, regex_iter: &mut Iter<char>) -> char {
+    let mut output_ch = ' ';
 
     while let Some(ch) = regex_iter.next() {
+        output_ch = *ch;
         match ch {
             'N' => {
                 pos.row -= 1;
@@ -59,29 +63,28 @@ fn navigate_map(map: &mut Vec<Vec<Location>>, mut pos: Position, or_stack: &mut 
                 map[pos.row][pos.col] = Location::Room;
             },
             '(' => {
-                //or_stack.push(*ch);
-                navigate_map(map, pos, or_stack, regex_iter);
+                output_ch = navigate_map(map, pos, regex_iter);
+
+                // We need to continue to recurse if we get | back from the function call
+                while output_ch == '|' {
+                    output_ch = navigate_map(map, pos, regex_iter);
+                }
             },
-            ')' => {
-                //or_stack.pop();
-                return;
+            ')' | '|' | '$' => {
+                return output_ch;
             },
             '^' => { },
-            '$' => {
-                return;
-            },
-            '|' => {
-                //navigate_map(map, pos, or_stack, regex_iter);
-                return;
-            },
             _ => {
                 panic!("Unexpected char in input regex");
             }
         };
     }
+
+    output_ch
 }
 
 fn _debug_print(map: &Vec<Vec<Location>>) {
+    println!();
     for row in map.iter() {
         for col in row.iter() {
             match col {
@@ -96,10 +99,9 @@ fn _debug_print(map: &Vec<Vec<Location>>) {
     }
 }
 
-fn trim_map(map: &mut Vec<Vec<Location>>) {
-    let mut trim_rows: Vec<usize> = vec![];
-    let mut trim_cols: Vec<usize> = vec![];
-
+// Trim the map down to only what is walkable. This function is only needed for debug printing the
+// map
+fn _trim_map(map: &mut Vec<Vec<Location>>) {
     // Remove northern walls
     loop {
         let row = map.remove(0);
@@ -159,28 +161,68 @@ fn trim_map(map: &mut Vec<Vec<Location>>) {
     }
 }
 
-fn max_doors(map: Vec<Vec<Location>>) -> i32 {
-    0
+// Use DFS to walk the map keeping track of the room that is the most doors away from the start
+fn max_doors(map: &Vec<Vec<Location>>, start: Position) -> i32 {
+
+    let mut max_count = 0;
+    let mut visited: HashSet<Position> = HashSet::new();
+    fn traverse(map: &Vec<Vec<Location>>, pos: Position, count: i32, visited: &mut HashSet<Position>, max_count: &mut i32) {
+        if pos.row >= map.len() || pos.col >= map[0].len() || visited.contains(&pos) {
+            return;
+        }
+
+        if count > *max_count {
+            *max_count = count;
+        }
+
+        visited.insert(pos);
+
+        if let Location::Wall = map[pos.row + 1][pos.col] { }
+        else {
+            if let Location::Wall = map[pos.row + 2][pos.col] { }
+            else {
+                traverse(map, Position { row: pos.row + 2, col: pos.col }, count+1, visited, max_count);
+            }
+        }
+        if let Location::Wall = map[pos.row - 1][pos.col] { }
+        else {
+            if let Location::Wall = map[pos.row - 2][pos.col] { }
+            else {
+                traverse(map, Position { row: pos.row - 2, col: pos.col }, count+1, visited, max_count);
+            }
+        }
+        if let Location::Wall = map[pos.row][pos.col + 1] { }
+        else {
+            if let Location::Wall = map[pos.row][pos.col + 2] { }
+            else {
+                traverse(map, Position { row: pos.row, col: pos.col + 2 }, count+1, visited, max_count);
+            }
+        }
+        if let Location::Wall = map[pos.row][pos.col - 1] { }
+        else {
+            if let Location::Wall = map[pos.row][pos.col - 2] { }
+            else {
+                traverse(map, Position { row: pos.row, col: pos.col - 2 }, count+1, visited, max_count);
+            }
+        }
+    }
+
+    traverse(&map, start, 0, &mut visited, &mut max_count);
+    max_count
 }
 
 fn main() {
-    let size: usize = 50;
+    let size: usize = 5000; // Arbitrary large enough initial map
     let mut map = vec![vec![Location::Wall;size];size];
-    let mut or_stack: Vec<char> = vec![];
-    //let mut regex_chars = parse_input("input.txt");
-    //let mut regex_chars = parse_input("input.test.txt");
-    //let mut regex_chars = parse_input("input.test.txt2");
-    //let mut regex_chars = parse_input("input.test.txt3");
-    let mut regex_chars = parse_input("input.test.txt4");
+    let regex_chars = parse_input("input.txt");
     let mut regex_iter = regex_chars.iter();
-    let mut start = Position { row: size/2, col: size/2 };
+    let start = Position { row: size/2, col: size/2 };
 
-    //_debug_print(&map);
-
-    navigate_map(&mut map, start, &mut or_stack, &mut regex_iter);
+    navigate_map(&mut map, start, &mut regex_iter);
     map[size/2][size/2] = Location::Start;
-    trim_map(&mut map);
-    _debug_print(&map);
-    //println!("Largest number of doors: {:?}", max_doors(map));
+    let doors =  max_doors(&map, start);
+    //_trim_map(&mut map);
+    //_debug_print(&map);
+    println!("Largest number of doors: {:?}", doors);
 }
 
