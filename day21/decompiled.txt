@@ -1,0 +1,33 @@
+
+0  f = 123
+1  f = f & 456
+2  if f == 72 { f = 1; } else { f = 0; }
+3  b = f + b; GOTO b
+4  b = 0; GOTO b
+5  f = 0
+6  c = f | 65536
+7  f = 7571367
+8  e = c & 255
+9  f = f + e
+10 f = f & 16777215
+11 f = f * 65899
+12 f = f & 16777215
+13 if 256 > c { e = 1; } else { e = 0; }
+14 b = e + b; GOTO b
+15 b = b + 1; GOTO b
+16 b = 27; GOTO b // Check f == a
+17 e = 0
+18 d = e + 1
+19 d = d * 256
+20 if d > c { d = 1; } else { d = 0; }
+21 b = d + b; GOTO b
+22 b = b + 1; GOTO b
+23 b = 25; GOTO b
+24 e = e + 1
+25 b = 17; GOTO b
+26 c = e
+27 b = 7; GOTO b
+28 if f == a { e = 1; } else { e = 0; }
+29 b = e + b; GOTO b
+30 b = 5; GOTO b
+
