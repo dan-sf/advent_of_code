@@ -1,13 +1,24 @@
 use std::fs;
 use std::io;
 use std::io::BufRead;
+use std::collections::HashSet;
 
+// @Note: Since this program uses a lot of stack space we need to increase the stack size for the
+// main thread. Otherwise we will overflow, this can be done with the following command:
+// rustc -C 'link-args=-Wl,-stack_size,0x80000000' solution2.rs  // 2 GB stack size
 
 #[derive(Copy, Clone)]
 enum Region {
     Rocky,
     Wet,
     Narrow,
+}
+
+#[derive(Copy, Clone, PartialEq, Eq, Hash)]
+enum Tool {
+    ClimbingGear,
+    Torch,
+    Neither,
 }
 
 fn parse_input(path: &str) -> (usize, (usize, usize)) {
@@ -70,8 +81,69 @@ fn generate_cave(depth: usize, target: (usize, usize)) -> Vec<Vec<Region>> {
     output_cave
 }
 
+fn get_fastest_time(cave: Vec<Vec<Region>>, target: (usize, usize)) -> i32 {
+    let mut output = std::i32::MAX; // Should be i32 max
+    let mut visited: HashSet<((usize, usize), Tool)> = HashSet::new();
+    let mut equiped = Tool::Torch;
+
+    fn traverse(cave: &Vec<Vec<Region>>, target: &(usize, usize), visited: &mut HashSet<((usize, usize), Tool)>, pos: (usize, usize), equiped: Tool, time: i32, output: &mut i32) {
+        if pos == *target {
+            if time < *output {
+                *output = time;
+            }
+            return;
+        }
+
+        visited.insert((pos, equiped));
+
+        let mut pos_list = vec![(pos.0+1, pos.1), (pos.0, pos.1+1)];
+        if pos.0 > 0 { pos_list.push((pos.0-1, pos.1)); }
+        if pos.1 > 0 { pos_list.push((pos.0, pos.1-1)); }
+
+        for new_pos in pos_list.iter() {
+            if !visited.contains(&(*new_pos, equiped)) && new_pos.0 < cave[0].len() && new_pos.1 < cave.len() {
+                match cave[new_pos.1][new_pos.0] {
+                    Region::Rocky => {
+                        if let Tool::Neither = equiped {
+                            traverse(cave, target, visited, *new_pos, Tool::Torch, time+8, output);
+                            traverse(cave, target, visited, *new_pos, Tool::ClimbingGear, time+8, output);
+                        } else {
+                            traverse(cave, target, visited, *new_pos, equiped, time+1, output);
+                        }
+                    },
+                    Region::Wet => {
+                        if let Tool::Torch = equiped {
+                            traverse(cave, target, visited, *new_pos, Tool::ClimbingGear, time+8, output);
+                            traverse(cave, target, visited, *new_pos, Tool::Neither, time+8, output);
+                        } else {
+                            traverse(cave, target, visited, *new_pos, equiped, time+1, output);
+                        }
+                    },
+                    Region::Narrow => {
+                        if let Tool::ClimbingGear = equiped {
+                            traverse(cave, target, visited, *new_pos, Tool::Torch, time+8, output);
+                            traverse(cave, target, visited, *new_pos, Tool::Neither, time+8, output);
+                        } else {
+                            traverse(cave, target, visited, *new_pos, equiped, time+1, output);
+                        }
+                    },
+                }
+            }
+        }
+    }
+
+    traverse(&cave, &target, &mut visited, (0, 0), Tool::Torch, 0, &mut output);
+
+    output
+}
+
 fn main() {
-    let (depth, target) = parse_input("input.txt");
+    //let (depth, target) = parse_input("input.txt");
+    let (depth, target) = parse_input("input.test.txt");
     let cave = generate_cave(depth, target);
+    let mut cave: Vec<Vec<Region>> = vec![vec![Region::Rocky;22];838];
+    println!("{:?}",target);
+    let output = get_fastest_time(cave, target);
+    println!("{:?}",output);
 }
 
