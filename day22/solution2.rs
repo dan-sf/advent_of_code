@@ -7,7 +7,7 @@ use std::collections::HashSet;
 // main thread. Otherwise we will overflow, this can be done with the following command:
 // rustc -C 'link-args=-Wl,-stack_size,0x80000000' solution2.rs  // 2 GB stack size
 
-#[derive(Copy, Clone)]
+#[derive(Debug, Copy, Clone)]
 enum Region {
     Rocky,
     Wet,
@@ -137,13 +137,80 @@ fn get_fastest_time(cave: Vec<Vec<Region>>, target: (usize, usize)) -> i32 {
     output
 }
 
+fn get_fastest_time_CALL(cave: Vec<Vec<Region>>, target: (usize, usize)) -> i32 {
+    let mut output = std::i32::MAX;
+    let mut visited: HashSet<(usize, usize)> = HashSet::new();
+    get_fastest_time_BSF(&cave, (0, 0), target, &mut visited, Tool::Torch, 0, &mut output);
+    output
+}
+
+fn get_fastest_time_BSF(cave: &Vec<Vec<Region>>, start: (usize, usize), target: (usize, usize), visited: &mut HashSet<(usize, usize)>, equiped: Tool, mut time: i32, output: &mut i32) {
+    let mut queue: Vec<((usize, usize), i32)> = vec![(start, time)];
+
+    while !queue.is_empty() {
+        let (pos, time) = queue.remove(0);
+        visited.insert(pos);
+
+        if pos == target {
+            println!("pos: {:?}, target: {:?}, time: {}, output: {}", pos, target, time, *output);
+            if time < *output {
+                *output = time;
+            }
+            return;
+        }
+
+        //println!("{:?}", pos);
+        let mut pos_list = vec![(pos.0+1, pos.1), (pos.0, pos.1+1)];
+        if pos.0 > 0 { pos_list.push((pos.0-1, pos.1)); }
+        if pos.1 > 0 { pos_list.push((pos.0, pos.1-1)); }
+
+        for new_pos in pos_list.iter() {
+            if !visited.contains(new_pos) && new_pos.0 < cave[0].len() && new_pos.1 < cave.len() {
+                queue.push((*new_pos, time+1));
+                //visited.insert(*new_pos);
+                match cave[new_pos.1][new_pos.0] {
+                    Region::Rocky => {
+                        if let Tool::Neither = equiped {
+                            //visited.remove(new_pos);
+                            get_fastest_time_BSF(cave, *new_pos, target, visited, Tool::Torch, time+7, output);
+                            //visited.remove(new_pos);
+                            get_fastest_time_BSF(cave, *new_pos, target, visited, Tool::ClimbingGear, time+7, output);
+                            //visited.insert(*new_pos);
+                        }
+                    },
+                    Region::Wet => {
+                        if let Tool::Torch = equiped {
+                            //visited.remove(new_pos);
+                            get_fastest_time_BSF(cave, *new_pos, target, visited, Tool::ClimbingGear, time+7, output);
+                            //visited.remove(new_pos);
+                            get_fastest_time_BSF(cave, *new_pos, target, visited, Tool::Neither, time+7, output);
+                            //visited.insert(*new_pos);
+                        }
+                    },
+                    Region::Narrow => {
+                        if let Tool::ClimbingGear = equiped {
+                            //visited.remove(new_pos);
+                            get_fastest_time_BSF(cave, *new_pos, target, visited, Tool::Torch, time+7, output);
+                            //visited.remove(new_pos);
+                            get_fastest_time_BSF(cave, *new_pos, target, visited, Tool::Neither, time+7, output);
+                            //visited.insert(*new_pos);
+                        }
+                    },
+                }
+            }
+        }
+    }
+}
+
 fn main() {
     //let (depth, target) = parse_input("input.txt");
     let (depth, target) = parse_input("input.test.txt");
     let cave = generate_cave(depth, target);
-    let mut cave: Vec<Vec<Region>> = vec![vec![Region::Rocky;22];838];
-    println!("{:?}",target);
-    let output = get_fastest_time(cave, target);
+    println!("{:?}", cave);
+    println!("{:?}, {}", cave.len(), cave[0].len());
+    //let mut cave: Vec<Vec<Region>> = vec![vec![Region::Rocky;22];838];
+    //println!("{:?}",target);
+    let output = get_fastest_time_CALL(cave, target);
     println!("{:?}",output);
 }
 
