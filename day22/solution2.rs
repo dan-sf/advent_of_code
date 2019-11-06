@@ -141,19 +141,18 @@ fn get_fastest_time_CALL(cave: Vec<Vec<Region>>, target: (usize, usize)) -> i32 
     let mut output = std::i32::MAX;
     let mut visited: HashSet<(usize, usize)> = HashSet::new();
     get_fastest_time_BSF(&cave, (0, 0), target, &mut visited, Tool::Torch, 0, &mut output);
-    //get_fastest_time_BSF(&cave, (0, 0), (0,0), &mut visited, Tool::Torch, 0, &mut output);
     output
 }
 
-fn get_fastest_time_BSF(cave: &Vec<Vec<Region>>, start: (usize, usize), target: (usize, usize), visited: &mut HashSet<(usize, usize)>, equiped: Tool, mut time: i32, output: &mut i32) {
+fn _get_fastest_time_BSF(cave: &Vec<Vec<Region>>, start: (usize, usize), target: (usize, usize), visited: &mut HashSet<(usize, usize)>, equiped: Tool, mut time: i32, output: &mut i32) {
     let mut visit_list: Vec<(usize, usize)> = vec![];
     let mut queue: Vec<((usize, usize), i32)> = vec![(start, time)];
-
-    visited.insert(start);
-    visit_list.push(start);
+    let mut almost_visited: HashSet<(usize, usize)> = HashSet::new();
 
     while !queue.is_empty() {
         let (pos, time) = queue.remove(0);
+        visited.insert(pos);
+        visit_list.push(pos);
 
         if pos == target {
             println!("pos: {:?}, target: {:?}, time: {}, output: {}", pos, target, time, *output);
@@ -161,54 +160,33 @@ fn get_fastest_time_BSF(cave: &Vec<Vec<Region>>, start: (usize, usize), target: 
                 *output = time;
             }
             break;
-            //return;
         }
 
-        //println!("{:?}", pos);
         let mut pos_list = vec![(pos.0+1, pos.1), (pos.0, pos.1+1)];
         if pos.0 > 0 { pos_list.push((pos.0-1, pos.1)); }
         if pos.1 > 0 { pos_list.push((pos.0, pos.1-1)); }
 
         for new_pos in pos_list.iter() {
-            if !visited.contains(new_pos) && new_pos.0 < cave[0].len() && new_pos.1 < cave.len() {
+            if !visited.contains(new_pos) && !almost_visited.contains(new_pos) && new_pos.0 < cave[0].len() && new_pos.1 < cave.len() {
                 queue.push((*new_pos, time+1));
-                visited.insert(*new_pos);
-                visit_list.push(pos);
+                almost_visited.insert(*new_pos);
                 match cave[new_pos.1][new_pos.0] {
                     Region::Rocky => {
                         if let Tool::Neither = equiped {
-                            visited.remove(new_pos);
-    for p in visit_list.iter() { println!("{}", visited.remove(p)); }
                             get_fastest_time_BSF(cave, *new_pos, target, visited, Tool::Torch, time+7, output);
-                            visited.remove(new_pos);
-    for p in visit_list.iter() { println!("{}", visited.remove(p)); }
                             get_fastest_time_BSF(cave, *new_pos, target, visited, Tool::ClimbingGear, time+7, output);
-                            visited.insert(*new_pos);
-    for p in visit_list.iter() { println!("{}", visited.insert(*p)); }
                         }
                     },
                     Region::Wet => {
                         if let Tool::Torch = equiped {
-                            visited.remove(new_pos);
-    for p in visit_list.iter() { println!("{}", visited.remove(p)); }
                             get_fastest_time_BSF(cave, *new_pos, target, visited, Tool::ClimbingGear, time+7, output);
-                            visited.remove(new_pos);
-    for p in visit_list.iter() { println!("{}", visited.remove(p)); }
                             get_fastest_time_BSF(cave, *new_pos, target, visited, Tool::Neither, time+7, output);
-                            visited.insert(*new_pos);
-    for p in visit_list.iter() { println!("{}", visited.insert(*p)); }
                         }
                     },
                     Region::Narrow => {
                         if let Tool::ClimbingGear = equiped {
-                            visited.remove(new_pos);
-    for p in visit_list.iter() { println!("{}", visited.remove(p)); }
                             get_fastest_time_BSF(cave, *new_pos, target, visited, Tool::Torch, time+7, output);
-                            visited.remove(new_pos);
-    for p in visit_list.iter() { println!("{}", visited.remove(p)); }
                             get_fastest_time_BSF(cave, *new_pos, target, visited, Tool::Neither, time+7, output);
-                            visited.insert(*new_pos);
-    for p in visit_list.iter() { println!("{}", visited.insert(*p)); }
                         }
                     },
                 }
@@ -216,10 +194,80 @@ fn get_fastest_time_BSF(cave: &Vec<Vec<Region>>, start: (usize, usize), target: 
         }
     }
 
-    //println!("HERE");
+    //println!("visited: {:?}", visited);
+    //println!("visit_list: {:?}", visit_list);
+
+    //println!("testing");
     for p in visit_list.iter() {
-        println!("{}", visited.remove(p));
+        //println!("{}", visited.remove(p));
+        visited.remove(p);
     }
+
+    //println!("visited: {:?}", visited);
+}
+
+fn get_fastest_time_BSF(cave: &Vec<Vec<Region>>, start: (usize, usize), target: (usize, usize), visited: &mut HashSet<(usize, usize)>, equiped: Tool, mut time: i32, output: &mut i32) {
+    let mut visit_list: Vec<(usize, usize)> = vec![];
+    let mut queue: Vec<((usize, usize), i32)> = vec![(start, time)];
+    let mut almost_visited: HashSet<(usize, usize)> = HashSet::new();
+
+    while !queue.is_empty() {
+        let (pos, time) = queue.remove(0);
+
+        match cave[pos.1][pos.0] {
+            Region::Rocky => {
+                if let Tool::Neither = equiped {
+                    get_fastest_time_BSF(cave, pos, target, visited, Tool::Torch, time+7, output);
+                    get_fastest_time_BSF(cave, pos, target, visited, Tool::ClimbingGear, time+7, output);
+                }
+            },
+            Region::Wet => {
+                if let Tool::Torch = equiped {
+                    get_fastest_time_BSF(cave, pos, target, visited, Tool::ClimbingGear, time+7, output);
+                    get_fastest_time_BSF(cave, pos, target, visited, Tool::Neither, time+7, output);
+                }
+            },
+            Region::Narrow => {
+                if let Tool::ClimbingGear = equiped {
+                    get_fastest_time_BSF(cave, pos, target, visited, Tool::Torch, time+7, output);
+                    get_fastest_time_BSF(cave, pos, target, visited, Tool::Neither, time+7, output);
+                }
+            },
+        };
+
+        visited.insert(pos);
+        visit_list.push(pos);
+
+        if pos == target {
+            println!("pos: {:?}, target: {:?}, time: {}, output: {}", pos, target, time, *output);
+            if time < *output {
+                *output = time;
+            }
+            break;
+        }
+
+        let mut pos_list = vec![(pos.0+1, pos.1), (pos.0, pos.1+1)];
+        if pos.0 > 0 { pos_list.push((pos.0-1, pos.1)); }
+        if pos.1 > 0 { pos_list.push((pos.0, pos.1-1)); }
+
+        for new_pos in pos_list.iter() {
+            if !visited.contains(new_pos) && !almost_visited.contains(new_pos) && new_pos.0 < cave[0].len() && new_pos.1 < cave.len() {
+                queue.push((*new_pos, time+1));
+                almost_visited.insert(*new_pos);
+            }
+        }
+    }
+
+    //println!("visited: {:?}", visited);
+    //println!("visit_list: {:?}", visit_list);
+
+    //println!("testing");
+    for p in visit_list.iter() {
+        //println!("{}", visited.remove(p));
+        visited.remove(p);
+    }
+
+    //println!("visited: {:?}", visited);
 }
 
 fn main() {
@@ -230,9 +278,9 @@ fn main() {
     //println!("{:?}, {}", cave.len(), cave[0].len());
     //let mut cave: Vec<Vec<Region>> = vec![vec![Region::Rocky;22];838];
     //println!("{:?}",target);
-    let cave = vec![vec![Region::Rocky, Region::Wet];2];
-    //let output = get_fastest_time_CALL(cave, target);
-    let output = get_fastest_time_CALL(cave, (1,1));
+    //let cave = vec![vec![Region::Rocky, Region::Wet];2];
+    let output = get_fastest_time_CALL(cave, target);
+    //let output = get_fastest_time_CALL(cave, (1,1));
     println!("{:?}", output);
 }
 
