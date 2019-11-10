@@ -2,10 +2,8 @@ use std::fs;
 use std::io;
 use std::io::BufRead;
 use std::collections::HashSet;
+use std::collections::BTreeSet;
 
-// @Note: Since this program uses a lot of stack space we need to increase the stack size for the
-// main thread. Otherwise we will overflow, this can be done with the following command:
-// rustc -C 'link-args=-Wl,-stack_size,0x80000000' solution2.rs  // 2 GB stack size
 
 #[derive(Debug, Copy, Clone)]
 enum Region {
@@ -14,7 +12,7 @@ enum Region {
     Narrow,
 }
 
-#[derive(Copy, Clone, PartialEq, Eq, Hash)]
+#[derive(Debug, Copy, Clone, PartialEq, Eq, Hash, PartialOrd, Ord)]
 enum Tool {
     ClimbingGear,
     Torch,
@@ -46,8 +44,8 @@ fn parse_input(path: &str) -> (usize, (usize, usize)) {
 }
 
 fn generate_cave(depth: usize, target: (usize, usize)) -> Vec<Vec<Region>> {
-    let mut value_cave: Vec<Vec<u64>> = vec![vec![0;target.0*2];target.1*2];
-    let mut output_cave: Vec<Vec<Region>> = vec![vec![Region::Rocky;target.0*2];target.1*2];
+    let mut value_cave: Vec<Vec<u64>> = vec![vec![0;target.0+50];target.1+50];
+    let mut output_cave: Vec<Vec<Region>> = vec![vec![Region::Rocky;target.0+50];target.1+50];
 
     // Get geologic index/erosion level
     for y in 0..value_cave.len() {
@@ -81,271 +79,87 @@ fn generate_cave(depth: usize, target: (usize, usize)) -> Vec<Vec<Region>> {
     output_cave
 }
 
-fn get_fastest_time(cave: Vec<Vec<Region>>, target: (usize, usize)) -> i32 {
-    let mut output = std::i32::MAX; // Should be i32 max
+// Use Dijkstra's algo to find the sortest path to the target
+fn get_fastest_time(cave: &Vec<Vec<Region>>, start: (usize, usize), target: (usize, usize)) -> i32 {
+    let mut output = 0;
     let mut visited: HashSet<((usize, usize), Tool)> = HashSet::new();
-    let mut equiped = Tool::Torch;
-
-    fn traverse(cave: &Vec<Vec<Region>>, target: &(usize, usize), visited: &mut HashSet<((usize, usize), Tool)>, pos: (usize, usize), equiped: Tool, time: i32, output: &mut i32) {
-        if pos == *target {
-            if time < *output {
-                *output = time;
-            }
-            return;
-        }
-
-        visited.insert((pos, equiped));
-
-        let mut pos_list = vec![(pos.0+1, pos.1), (pos.0, pos.1+1)];
-        if pos.0 > 0 { pos_list.push((pos.0-1, pos.1)); }
-        if pos.1 > 0 { pos_list.push((pos.0, pos.1-1)); }
-
-        for new_pos in pos_list.iter() {
-            if !visited.contains(&(*new_pos, equiped)) && new_pos.0 < cave[0].len() && new_pos.1 < cave.len() {
-                match cave[new_pos.1][new_pos.0] {
-                    Region::Rocky => {
-                        if let Tool::Neither = equiped {
-                            traverse(cave, target, visited, *new_pos, Tool::Torch, time+8, output);
-                            traverse(cave, target, visited, *new_pos, Tool::ClimbingGear, time+8, output);
-                        } else {
-                            traverse(cave, target, visited, *new_pos, equiped, time+1, output);
-                        }
-                    },
-                    Region::Wet => {
-                        if let Tool::Torch = equiped {
-                            traverse(cave, target, visited, *new_pos, Tool::ClimbingGear, time+8, output);
-                            traverse(cave, target, visited, *new_pos, Tool::Neither, time+8, output);
-                        } else {
-                            traverse(cave, target, visited, *new_pos, equiped, time+1, output);
-                        }
-                    },
-                    Region::Narrow => {
-                        if let Tool::ClimbingGear = equiped {
-                            traverse(cave, target, visited, *new_pos, Tool::Torch, time+8, output);
-                            traverse(cave, target, visited, *new_pos, Tool::Neither, time+8, output);
-                        } else {
-                            traverse(cave, target, visited, *new_pos, equiped, time+1, output);
-                        }
-                    },
-                }
-            }
-        }
-    }
-
-    traverse(&cave, &target, &mut visited, (0, 0), Tool::Torch, 0, &mut output);
-
-    output
-}
-
-fn get_fastest_time_CALL(cave: Vec<Vec<Region>>, target: (usize, usize)) -> i32 {
-    let mut output = std::i32::MAX;
-    let mut visited: HashSet<(usize, usize)> = HashSet::new();
-    get_fastest_time_BSF(&cave, (0, 0), target, &mut visited, Tool::Torch, 0, &mut output);
-    output
-}
-
-fn _get_fastest_time_BSF(cave: &Vec<Vec<Region>>, start: (usize, usize), target: (usize, usize), visited: &mut HashSet<(usize, usize)>, equiped: Tool, mut time: i32, output: &mut i32) {
-    let mut visit_list: Vec<(usize, usize)> = vec![];
-    let mut queue: Vec<((usize, usize), i32)> = vec![(start, time)];
-    let mut almost_visited: HashSet<(usize, usize)> = HashSet::new();
+    // Here we use a btree to keep the queue sorted by time
+    let mut queue: BTreeSet<(i32, (usize, usize), Tool)> = BTreeSet::new();
+    queue.insert((0, start, Tool::Torch));
 
     while !queue.is_empty() {
-        let (pos, time) = queue.remove(0);
-        visited.insert(pos);
-        visit_list.push(pos);
+        let (time, pos, tool) = queue.take(&queue.iter().next().unwrap().clone()).unwrap();
 
         if pos == target {
-            println!("pos: {:?}, target: {:?}, time: {}, output: {}", pos, target, time, *output);
-            if time < *output {
-                *output = time;
-            }
+            output = time;
             break;
         }
 
-        let mut pos_list = vec![(pos.0+1, pos.1), (pos.0, pos.1+1)];
-        if pos.0 > 0 { pos_list.push((pos.0-1, pos.1)); }
-        if pos.1 > 0 { pos_list.push((pos.0, pos.1-1)); }
-
-        for new_pos in pos_list.iter() {
-            if !visited.contains(new_pos) && !almost_visited.contains(new_pos) && new_pos.0 < cave[0].len() && new_pos.1 < cave.len() {
-                queue.push((*new_pos, time+1));
-                almost_visited.insert(*new_pos);
-                match cave[new_pos.1][new_pos.0] {
-                    Region::Rocky => {
-                        if let Tool::Neither = equiped {
-                            get_fastest_time_BSF(cave, *new_pos, target, visited, Tool::Torch, time+7, output);
-                            get_fastest_time_BSF(cave, *new_pos, target, visited, Tool::ClimbingGear, time+7, output);
-                        }
-                    },
-                    Region::Wet => {
-                        if let Tool::Torch = equiped {
-                            get_fastest_time_BSF(cave, *new_pos, target, visited, Tool::ClimbingGear, time+7, output);
-                            get_fastest_time_BSF(cave, *new_pos, target, visited, Tool::Neither, time+7, output);
-                        }
-                    },
-                    Region::Narrow => {
-                        if let Tool::ClimbingGear = equiped {
-                            get_fastest_time_BSF(cave, *new_pos, target, visited, Tool::Torch, time+7, output);
-                            get_fastest_time_BSF(cave, *new_pos, target, visited, Tool::Neither, time+7, output);
-                        }
-                    },
-                }
-            }
+        // We don't need to add any nodes if we already visited this pos/tool combo
+        if !visited.insert((pos, tool)) {
+            continue;
         }
-    }
 
-    //println!("visited: {:?}", visited);
-    //println!("visit_list: {:?}", visit_list);
-
-    //println!("testing");
-    for p in visit_list.iter() {
-        //println!("{}", visited.remove(p));
-        visited.remove(p);
-    }
-
-    //println!("visited: {:?}", visited);
-}
-
-fn get_fastest_time_BSF(cave: &Vec<Vec<Region>>, start: (usize, usize), target: (usize, usize), visited: &mut HashSet<(usize, usize)>, equiped: Tool, mut time: i32, output: &mut i32) {
-    let mut visit_list: Vec<(usize, usize)> = vec![];
-    let mut queue: Vec<((usize, usize), i32)> = vec![(start, time)];
-    let mut almost_visited: HashSet<(usize, usize)> = HashSet::new();
-
-    while !queue.is_empty() {
-        let (pos, time) = queue.remove(0);
-
+        // Add nodes for changing the right equipment given the region type
         match cave[pos.1][pos.0] {
             Region::Rocky => {
-                if let Tool::Neither = equiped {
-                    get_fastest_time_BSF(cave, pos, target, visited, Tool::Torch, time+7, output);
-                    get_fastest_time_BSF(cave, pos, target, visited, Tool::ClimbingGear, time+7, output);
-                }
+                match tool {
+                    Tool::ClimbingGear => queue.insert((time+7, pos, Tool::Torch)),
+                    Tool::Torch => queue.insert((time+7, pos, Tool::ClimbingGear)),
+                    _ => unreachable!(),
+                };
             },
             Region::Wet => {
-                if let Tool::Torch = equiped {
-                    get_fastest_time_BSF(cave, pos, target, visited, Tool::ClimbingGear, time+7, output);
-                    get_fastest_time_BSF(cave, pos, target, visited, Tool::Neither, time+7, output);
-                }
+                match tool {
+                    Tool::ClimbingGear => queue.insert((time+7, pos, Tool::Neither)),
+                    Tool::Neither => queue.insert((time+7, pos, Tool::ClimbingGear)),
+                    _ => unreachable!(),
+                };
             },
             Region::Narrow => {
-                if let Tool::ClimbingGear = equiped {
-                    get_fastest_time_BSF(cave, pos, target, visited, Tool::Torch, time+7, output);
-                    get_fastest_time_BSF(cave, pos, target, visited, Tool::Neither, time+7, output);
-                }
+                match tool {
+                    Tool::Torch => queue.insert((time+7, pos, Tool::Neither)),
+                    Tool::Neither => queue.insert((time+7, pos, Tool::Torch)),
+                    _ => unreachable!(),
+                };
             },
         };
 
-        visited.insert(pos);
-        visit_list.push(pos);
-
-        if pos == target {
-            println!("pos: {:?}, target: {:?}, time: {}, output: {}", pos, target, time, *output);
-            if time < *output {
-                *output = time;
-            }
-            break;
-        }
-
         let mut pos_list = vec![(pos.0+1, pos.1), (pos.0, pos.1+1)];
         if pos.0 > 0 { pos_list.push((pos.0-1, pos.1)); }
         if pos.1 > 0 { pos_list.push((pos.0, pos.1-1)); }
 
+        // For all node neighbors add to the queue if we can safely move to a new region with the
+        // current tool we have
         for new_pos in pos_list.iter() {
-            if !visited.contains(new_pos) && !almost_visited.contains(new_pos) && new_pos.0 < cave[0].len() && new_pos.1 < cave.len() {
-                queue.push((*new_pos, time+1));
-                almost_visited.insert(*new_pos);
+            if new_pos.0 < cave[0].len() && new_pos.1 < cave.len() {
+                match cave[new_pos.1][new_pos.0] {
+                    Region::Rocky => {
+                        if let Tool::ClimbingGear | Tool::Torch = tool {
+                            queue.insert((time+1, *new_pos, tool));
+                        }
+                    },
+                    Region::Wet => {
+                        if let Tool::Neither | Tool::ClimbingGear = tool {
+                            queue.insert((time+1, *new_pos, tool));
+                        }
+                    },
+                    Region::Narrow => {
+                        if let Tool::Torch | Tool::Neither = tool {
+                            queue.insert((time+1, *new_pos, tool));
+                        }
+                    },
+                };
             }
         }
     }
-
-    //println!("visited: {:?}", visited);
-    //println!("visit_list: {:?}", visit_list);
-
-    //println!("testing");
-    for p in visit_list.iter() {
-        //println!("{}", visited.remove(p));
-        visited.remove(p);
-    }
-
-    //println!("visited: {:?}", visited);
-}
-
-
-fn get_fastest_time_dijktstra(cave: &Vec<Vec<Region>>, start: (usize, usize), target: (usize, usize), visited: &mut HashSet<(usize, usize)>, equiped: Tool, mut time: i32, output: &mut i32) {
-    let mut visit_list: Vec<(usize, usize)> = vec![];
-    let mut queue: Vec<((usize, usize), i32)> = vec![(start, time)];
-    let mut visited: HashSet<(i32, (usize, usize), Tool)> = HashSet::new();
-
-    while !queue.is_empty() {
-        let (pos, time) = queue.remove(0);
-
-        match cave[pos.1][pos.0] {
-            Region::Rocky => {
-                if let Tool::Neither = equiped {
-                    get_fastest_time_BSF(cave, pos, target, visited, Tool::Torch, time+7, output);
-                    get_fastest_time_BSF(cave, pos, target, visited, Tool::ClimbingGear, time+7, output);
-                }
-            },
-            Region::Wet => {
-                if let Tool::Torch = equiped {
-                    get_fastest_time_BSF(cave, pos, target, visited, Tool::ClimbingGear, time+7, output);
-                    get_fastest_time_BSF(cave, pos, target, visited, Tool::Neither, time+7, output);
-                }
-            },
-            Region::Narrow => {
-                if let Tool::ClimbingGear = equiped {
-                    get_fastest_time_BSF(cave, pos, target, visited, Tool::Torch, time+7, output);
-                    get_fastest_time_BSF(cave, pos, target, visited, Tool::Neither, time+7, output);
-                }
-            },
-        };
-
-        visited.insert(pos);
-        visit_list.push(pos);
-
-        if pos == target {
-            println!("pos: {:?}, target: {:?}, time: {}, output: {}", pos, target, time, *output);
-            if time < *output {
-                *output = time;
-            }
-            break;
-        }
-
-        let mut pos_list = vec![(pos.0+1, pos.1), (pos.0, pos.1+1)];
-        if pos.0 > 0 { pos_list.push((pos.0-1, pos.1)); }
-        if pos.1 > 0 { pos_list.push((pos.0, pos.1-1)); }
-
-        for new_pos in pos_list.iter() {
-            if !visited.contains(new_pos) && !almost_visited.contains(new_pos) && new_pos.0 < cave[0].len() && new_pos.1 < cave.len() {
-                queue.push((*new_pos, time+1));
-                almost_visited.insert(*new_pos);
-            }
-        }
-    }
-
-    //println!("visited: {:?}", visited);
-    //println!("visit_list: {:?}", visit_list);
-
-    //println!("testing");
-    for p in visit_list.iter() {
-        //println!("{}", visited.remove(p));
-        visited.remove(p);
-    }
-
-    //println!("visited: {:?}", visited);
+    output
 }
 
 fn main() {
-    //let (depth, target) = parse_input("input.txt");
-    let (depth, target) = parse_input("input.test.txt");
+    let (depth, target) = parse_input("input.txt");
     let cave = generate_cave(depth, target);
-    //println!("{:?}", cave);
-    //println!("{:?}, {}", cave.len(), cave[0].len());
-    //let mut cave: Vec<Vec<Region>> = vec![vec![Region::Rocky;22];838];
-    //println!("{:?}",target);
-    //let cave = vec![vec![Region::Rocky, Region::Wet];2];
-    let output = get_fastest_time_CALL(cave, target);
-    //let output = get_fastest_time_CALL(cave, (1,1));
-    println!("{:?}", output);
+    let output = get_fastest_time(&cave, (0, 0), target);
+    println!("Fastest time: {:?}", output);
 }
 
