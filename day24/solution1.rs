@@ -170,6 +170,33 @@ fn get_selection(select_group: &Group, target_groups: &Vec<Group>, filter: &Hash
     output
 }
 
+fn sort_groups(mut groups: Vec<Group>) -> Vec<Group> {
+    for i in 0..groups.len() {
+        let base_ef = groups[i].units * groups[i].damage;
+        for j in 0..(groups.len()-i) {
+            let check_ef = groups[j].units * groups[j].damage;
+            if (base_ef > check_ef) || (base_ef == check_ef && groups[i].initiative > groups[j].initiative) {
+                let larger = groups.remove(i);
+                groups.insert(j, larger);
+            }
+        }
+    }
+    groups
+}
+
+fn run_selections(select_groups: &Vec<Group>, target_groups: &Vec<Group>) -> Vec<(usize, usize)> {
+    let mut output: Vec<(usize, usize)> = vec![];
+    let mut filter: HashSet<usize> = HashSet::new();
+
+    for (i, sg) in select_groups.iter().enumerate() {
+        if let Some(target_index) = get_selection(sg, target_groups, &filter) {
+            filter.insert(target_index);
+            output.push((i, target_index));
+        }
+    }
+    output
+}
+
 fn main() {
     let (immune_system, infection) = parse_input("input.test.txt");
     println!("{:?}", immune_system);
@@ -177,6 +204,10 @@ fn main() {
     println!("{:?}", infection);
     let mut filter: HashSet<usize> = HashSet::new();
     //filter.insert(1);
+    let infection = sort_groups(infection);
+    let immune_system = sort_groups(immune_system);
     println!("{:?}", get_selection(&immune_system[0], &infection, &filter));
+    // @Note: I will need to sort the groups by effective power and initiative descending (before every selection phase)
+    println!("{:?}", run_selections(&immune_system, &infection));
 }
 
