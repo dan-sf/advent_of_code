@@ -28,6 +28,7 @@ struct Group {
     damage: i32,
     initiative: i32,
     group_type: GroupType,
+    group_index: usize,
 }
 
 fn get_attack_type_from_text(text: &String) -> AttackType {
@@ -139,6 +140,7 @@ fn parse_input(path: &str) -> (Vec<Group>, Vec<Group>) {
             damage: damage,
             initiative: initiative,
             group_type: if push_immune { GroupType::ImmuneSystem } else { GroupType::Infection },
+            group_index: if push_immune { immune_system.len() } else { infection.len() },
         };
 
         if push_immune {
@@ -204,7 +206,7 @@ fn run_selections(select_groups: &Vec<Group>, target_groups: &Vec<Group>) -> Vec
 
 // Return damage for a source group to a target group
 fn get_damage(source: &Group, target: &Group) -> i32 {
-    if target.immunities.contains(&source.attack_type) {
+    if target.immunities.contains(&source.attack_type) || source.units <= 0 {
         return 0;
     }
     let mut multiplier = 1;
@@ -232,8 +234,10 @@ fn run_simulation(immune_system: &Vec<Group>, infection: &Vec<Group>, boost: i32
     let mut infection = infection.clone();
     loop {
         // Order by largest ep then initiative
-        infection.sort_by_key(|g| (-g.units * g.damage, -g.initiative));
-        immune_system.sort_by_key(|g| (-g.units * g.damage, -g.initiative));
+        infection.sort_by_key(|g| (g.units * g.damage, g.initiative));
+        infection.reverse();
+        immune_system.sort_by_key(|g| (g.units * g.damage, g.initiative));
+        immune_system.reverse();
 
         // Get the attacking order of all the groups
         let mut attack_order: Vec<(i32, usize, usize, GroupType)> = vec![];
@@ -252,17 +256,24 @@ fn run_simulation(immune_system: &Vec<Group>, infection: &Vec<Group>, boost: i32
             let (_init, attack_ind, target_ind, group_type) = attack;
             match group_type {
                 GroupType::ImmuneSystem => {
+                    let d = get_damage(&immune_system[*attack_ind], &infection[*target_ind]);
                     let units_killed = get_damage(&immune_system[*attack_ind],
                                                   &infection[*target_ind]) / infection[*target_ind].hit_points;
                     infection[*target_ind].units -= units_killed;
+                    println!("{:?} group {} attacks defending group {}, killing {} units, damage {}", group_type, immune_system[*attack_ind].group_index+1, infection[*target_ind].group_index+1, units_killed, d);
+                    //println!("Attacker: {:?} target: {:?}", immune_system[*attack_ind], infection[*target_ind]);
                 },
                 GroupType::Infection => {
+                    let d = get_damage(&infection[*attack_ind], &immune_system[*target_ind]);
                     let units_killed = get_damage(&infection[*attack_ind],
                                                   &immune_system[*target_ind]) / immune_system[*target_ind].hit_points;
                     immune_system[*target_ind].units -= units_killed;
+                    println!("{:?} group {} attacks defending group {}, killing {} units, damage {}", group_type, infection[*attack_ind].group_index+1, immune_system[*target_ind].group_index+1, units_killed, d);
+                    //println!("Attacker: {:?} target: {:?}", infection[*attack_ind], immune_system[*target_ind]);
                 },
             };
         }
+        println!();
 
         if all_dead(&infection) {
             let output = immune_system.iter().map(|g| g.units).sum::<i32>();
@@ -282,29 +293,30 @@ fn main() {
     //let (immune_system, infection) = parse_input("input.txt");
     let (immune_system, infection) = parse_input("input.test.txt");
 
-    let mut start = 0;
-    let mut end = 20000;
-    let mut guess = 0;
+    //let mut start = 0;
+    //let mut end = 20000;
+    //let mut guess = end/2;
 
-    while start <= end {
-        guess = (start+end) / 2;
-        println!("Guessing: {}", guess);
-        let (group, units) = run_simulation(&immune_system, &infection, guess);
+    //while start < end {
+    //    let (group, units) = run_simulation(&immune_system, &infection, guess);
 
-        match group {
-            GroupType::ImmuneSystem => {
-                end = guess;
-                println!("im => end: {}, guess: {}, start: {}", end, guess, start);
-            },
-            GroupType::Infection => {
-                start = guess;
-                println!("in => end: {}, guess: {}, start: {}", end, guess, start);
-            },
-        };
+    //    match group {
+    //        GroupType::ImmuneSystem => {
+    //            end = guess - 1;
+    //            println!("im => end: {}, guess: {}, start: {}", end, guess, start);
+    //        },
+    //        GroupType::Infection => {
+    //            start = guess;
+    //            println!("in => end: {}, guess: {}, start: {}", end, guess, start);
+    //        },
+    //    };
 
-        println!("Guess: {}, units: {}", guess, units);
-    }
+    //    println!("Boost: {}, units: {}", guess, units);
+    //    guess = (start+end) / 2;
+    //}
 
-        //let (group, units) = run_simulation(&immune_system, &infection, 29);
+    //let (group, units) = run_simulation(&immune_system, &infection, 29);
+    let (group, units) = run_simulation(&immune_system, &infection, 1570);
+    println!("Units: {}", units);
 }
 
