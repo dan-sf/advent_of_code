@@ -9,6 +9,14 @@ struct NanoBot {
     radius: i32,
 }
 
+#[derive(Debug)]
+struct Cube {
+    //points: [(i32, i32, i32), (i32, i32, i32), (i32, i32, i32),
+    //         (i32, i32, i32), (i32, i32, i32), (i32, i32, i32)], // Center points for each face of the cube
+    points: [(i32, i32, i32); 6],
+    center: (i32, i32, i32),
+}
+
 fn parse_input(path: &str) -> Vec<NanoBot> {
     let input = File::open(path)
         .expect("Something went wrong reading the file");
@@ -88,6 +96,90 @@ fn point_search(start: (i32, i32, i32), mut bot_count: i32, nano_bots: &Vec<Nano
     output_point
 }
 
+fn get_root_cube(nano_bots: &Vec<NanoBot>) -> Cube {
+    let mut max_pos = (0, 0, 0);
+    let mut min_pos = (0, 0, 0);
+
+    for bot in nano_bots.iter() {
+        if bot.pos.0 > max_pos.0 { max_pos.0 = bot.pos.0; }
+        if bot.pos.1 > max_pos.1 { max_pos.1 = bot.pos.1; }
+        if bot.pos.2 > max_pos.2 { max_pos.2 = bot.pos.2; }
+
+        if bot.pos.0 < min_pos.0 { min_pos.0 = bot.pos.0; }
+        if bot.pos.1 < min_pos.1 { min_pos.1 = bot.pos.1; }
+        if bot.pos.2 < min_pos.2 { min_pos.2 = bot.pos.2; }
+    }
+
+    Cube {
+        center: (0, 0, 0),
+        points: [(max_pos.0, 0, 0), (0, max_pos.1, 0), (0, 0, max_pos.2),
+                 (min_pos.0, 0, 0), (0, min_pos.1, 0), (0, 0, min_pos.2)],
+    }
+}
+
+fn from_slice(arr_vec: &[(i32, i32, i32)]) -> [(i32, i32, i32); 6] {
+    let mut array = [(0, 0, 0); 6];
+    let arr_vec = &arr_vec[..array.len()]; // panics if not enough data
+    array.copy_from_slice(arr_vec); 
+    array
+}
+
+fn divide_cube(cube: &Cube) -> Vec<Cube> {
+    let mut output: Vec<Cube> = vec![];
+    let cp = cube.points;
+    let cc = cube.center;
+
+    let positive_points = [((cp[0]).0, cc.1+(cp[1]).1/2, cc.2+(cp[2]).2/2),
+                           (cc.0+(cp[0]).0/2, (cp[1]).1, cc.2+(cp[2]).2/2),
+                           (cc.0+(cp[0]).0/2, cc.1+(cp[1]).1/2, (cp[2]).2),
+                           (cc.0, cc.1+(cp[1]).1/2, cc.2+(cp[2]).2/2),
+                           (cc.0+(cp[0]).0/2, cc.1, cc.2+(cp[2]).2/2),
+                           (cc.0+(cp[0]).0/2, cc.1+(cp[1]).1/2, cc.2)];
+
+    output.push(Cube {
+        center: (cc.0, cc.1, cc.2),
+        points: positive_points,
+    });
+
+    let cube_points = positive_points.iter().map(|r| (r.0, -r.1, r.2)).collect::<Vec<(i32, i32, i32)>>();
+    output.push(Cube {
+        center: (cc.0, -cc.1, cc.2),
+        points: from_slice(&cube_points),
+    });
+
+    let cube_points = positive_points.iter().map(|r| (-r.0, r.1, r.2)).collect::<Vec<(i32, i32, i32)>>();
+    output.push(Cube {
+        center: (-cc.0, cc.1, cc.2),
+        points: from_slice(&cube_points),
+    });
+
+    let cube_points = positive_points.iter().map(|r| (r.0, r.1, -r.2)).collect::<Vec<(i32, i32, i32)>>();
+    output.push(Cube {
+        center: (cc.0, cc.1, -cc.2),
+        points: from_slice(&cube_points),
+    });
+
+    //output.push(Cube {
+    //    center: (cc.0, cc.1, cc.2),
+    //    points: (((cp.0).0, cc.1-(cp.1).1/2, cc.2+(cp.2).2/2), (cc.0-(cp.0).0/2, (cp.1).1, cc.2+(cp.2).2/2), (cc.0-(cp.0).0/2, cc.1+(cp.1).1/2, (cp.2).2),
+    //             ((cp.3).0, cc.1-(cp.4).1/2, cc.2+(cp.5).2/2), (cc.0-(cp.3).0/2, (cp.4).1, cc.2+(cp.5).2/2), (cc.0-(cp.3).0/2, cc.1+(cp.4).1/2, (cp.5).2)),
+    //});
+
+    //output.push(Cube {
+    //    center: (cc.0, cc.1, cc.2),
+    //    points: (((cp.0).0, cc.1+(cp.1).1/2, cc.2-(cp.2).2/2), (cc.0+(cp.0).0/2, (cp.1).1, cc.2-(cp.2).2/2), (cc.0+(cp.0).0/2, cc.1-(cp.1).1/2, (cp.2).2),
+    //             ((cp.3).0, cc.1+(cp.4).1/2, cc.2-(cp.5).2/2), (cc.0+(cp.3).0/2, (cp.4).1, cc.2-(cp.5).2/2), (cc.0+(cp.3).0/2, cc.1-(cp.4).1/2, (cp.5).2)),
+    //});
+
+    //output.push(Cube {
+    //    center: (cc.0, cc.1, cc.2),
+    //    points: (((cp.0).0, cc.1-(cp.1).1/2, cc.2-(cp.2).2/2), (cc.0-(cp.0).0/2, (cp.1).1, cc.2-(cp.2).2/2), (cc.0-(cp.0).0/2, cc.1-(cp.1).1/2, (cp.2).2),
+    //             ((cp.3).0, cc.1-(cp.4).1/2, cc.2-(cp.5).2/2), (cc.0-(cp.3).0/2, (cp.4).1, cc.2-(cp.5).2/2), (cc.0-(cp.3).0/2, cc.1-(cp.4).1/2, (cp.5).2)),
+    //});
+
+    output
+}
+
 fn main() {
     let nano_bots = parse_input("input.txt");
     let mut max_bot = &nano_bots[0];
@@ -108,123 +200,21 @@ fn main() {
         }
     }
 
-    //println!("max_bots: {}, max_bot: {:?}", max_bots, max_bot);
-    //println!("get_bots_in_range: {}", get_bots_in_range(max_bot.pos, &nano_bots));
+    //let p = (11310452-1000000, 29219798, 46389110);
+    //let b = get_bots_in_range(p, &nano_bots);
+    //println!("get_bots_in_range: {}", b);
+    //let result = point_search(p, b, &nano_bots);
+    //println!("output_point: {:?}", result);
+    println!("cube: {:?}", get_root_cube(&nano_bots));
 
-    // let result = point_search(max_bot.pos, 827, &nano_bots);
-    // println!("output_point: {:?}", result);
-
-
-    // Found a new larger point, pos: (10363214, 24005889, 50553679), count: 836
-
-    // let result = point_search((10363214, 24005889, 50553679), 836, &nano_bots);
-    // println!("output_point: {:?}", result);
-
-
-    // println!("get_bots_in_range: {}", get_bots_in_range((10363214-1000, 24005889-1000, 50553679-1000), &nano_bots));
-
-    // let result = point_search((10363214-1000, 24005889-1000, 50553679-1000), 836, &nano_bots);
-    // println!("output_point: {:?}", result);
-
-    // println!("get_bots_in_range: {}", get_bots_in_range((10363214-1100, 24005889-1100, 50553679-1100), &nano_bots));
-
-    // let result = point_search((10363214-1100, 24005889-1100, 50553679-1100), 836, &nano_bots);
-    // println!("output_point: {:?}", result);
-
-    //for step in &[(1, 0, 0), (0, 1, 0), (0, 0, 1),
-    //              (-1, 0, 0), (0, -1, 0), (0, 0, -1)] {
-    //    println!("get_bots_in_range: {}", get_bots_in_range((10362213+step.0, 24004889+step.1, 50552257+step.2), &nano_bots));
-    ////(10362213, 24004889, 50552257)
-    //}
-
-    // 84919359 too low
-
-    // // Manually get the bot with the most other bots around it...
-    // for b in nano_bots.iter() {
-    //     println!("{:?}, {}", b, get_bots_in_range(b.pos, &nano_bots));
-    // }
-
-
-    // NanoBot { pos: (7010455, 25892932, 49404738), radius: 79383691 }, 854
-
-
-
-
-    // let p = (7010455, 25892932, 49404738); // 854
-    // let b = get_bots_in_range(p, &nano_bots);
-    // println!("get_bots_in_range: {}", b);
-    // let result = point_search(p, b, &nano_bots);
-    // println!("output_point: {:?}", result);
-
-    // let p = (7010455+100000, 26892681+100000, 48361990+100000); // 888
-    // let b = get_bots_in_range(p, &nano_bots);
-    // println!("get_bots_in_range: {}", b);
-    // let result = point_search(p, b, &nano_bots);
-    // println!("output_point: {:?}", result);
-
-
-    // // Found a new larger point, pos: (7110455, 26992682, 48361991), count: 889
-
-    // let p = (7110455+100000, 26992682+100000, 48361991+100000); // 889
-    // let b = get_bots_in_range(p, &nano_bots);
-    // println!("get_bots_in_range: {}", b);
-    // let result = point_search(p, b, &nano_bots);
-    // println!("output_point: {:?}", result);
-
-
-    // // Found a new larger point, pos: (7210455, 27116207, 48385516), count: 891
-
-    // let p = (7210455+100000, 27116207+100000, 48385516+100000); // 891
-    // let b = get_bots_in_range(p, &nano_bots);
-    // println!("get_bots_in_range: {}", b);
-    // let result = point_search(p, b, &nano_bots);
-    // println!("output_point: {:?}", result);
-
-    // // Found a new larger point, pos: (7310455, 27216208, 48385517), count: 893
-
-    // let p = (7310455+1000000, 27216208+1000000, 48385517+1000000); // 893
-    // let b = get_bots_in_range(p, &nano_bots);
-    // println!("get_bots_in_range: {}", b);
-    // let result = point_search(p, b, &nano_bots);
-    // println!("output_point: {:?}", result);
-
-
-    // // Found a new larger point, pos: (8310455, 28219798, 48389107), count: 898
-
-    // let p = (8310455+1000000, 28219798+1000000, 48389107+1000000); // 898
-    // let b = get_bots_in_range(p, &nano_bots);
-    // println!("get_bots_in_range: {}", b);
-    // let result = point_search(p, b, &nano_bots);
-    // println!("output_point: {:?}", result);
-
-    // // Found a new larger point, pos: (9310455, 29219799, 48389108), count: 899
-    // // output_point: (9310454, 29219798, 48389108)
-
-    // let p = (9310454+1000000, 29219798, 48389108); // 899
-    // let b = get_bots_in_range(p, &nano_bots);
-    // println!("get_bots_in_range: {}", b);
-    // let result = point_search(p, b, &nano_bots);
-    // println!("output_point: {:?}", result);
-
-    // 86919360 too low :(
-
-    // // Found a new larger point, pos: (10310454, 29219799, 47389109), count: 908
-    // // output_point: (10310453, 29219798, 47389109)
-
-    // let p = (10310453+1000000, 29219798, 47389109);
-    // let b = get_bots_in_range(p, &nano_bots);
-    // println!("get_bots_in_range: {}", b);
-    // let result = point_search(p, b, &nano_bots);
-    // println!("output_point: {:?}", result);
-
-    // Found a new larger point, pos: (11310453, 29219799, 46389110), count: 915
-    // output_point: (11310452, 29219798, 46389110)
-
-    let p = (11310452-1000000, 29219798, 46389110);
-    let b = get_bots_in_range(p, &nano_bots);
-    println!("get_bots_in_range: {}", b);
-    let result = point_search(p, b, &nano_bots);
-    println!("output_point: {:?}", result);
-
+    let c = Cube {
+        center: (0, 0, 0),
+        points: [(8, 0, 0), (0, 8, 0), (0, 0, 8),
+                 (-8, 0, 0), (0, -8, 0), (0, 0, -8)],
+    };
+    println!("breakdowns:");
+    for dc in divide_cube(&c).iter() {
+        println!("{:?}", dc);
+    }
 }
 
