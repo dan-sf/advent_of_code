@@ -197,16 +197,34 @@ fn main() {
     // let result = point_search(p, b, &nano_bots);
     // println!("output_point: {:?}", result);
 
-    // Found a new larger point, pos: (9310455, 29219799, 48389108), count: 899
-    // output_point: (9310454, 29219798, 48389108)
+    // // Found a new larger point, pos: (9310455, 29219799, 48389108), count: 899
+    // // output_point: (9310454, 29219798, 48389108)
 
-    let p = (9310454, 29219798, 48389108+1000000); // 899
+    // let p = (9310454+1000000, 29219798, 48389108); // 899
+    // let b = get_bots_in_range(p, &nano_bots);
+    // println!("get_bots_in_range: {}", b);
+    // let result = point_search(p, b, &nano_bots);
+    // println!("output_point: {:?}", result);
+
+    // 86919360 too low :(
+
+    // // Found a new larger point, pos: (10310454, 29219799, 47389109), count: 908
+    // // output_point: (10310453, 29219798, 47389109)
+
+    // let p = (10310453+1000000, 29219798, 47389109);
+    // let b = get_bots_in_range(p, &nano_bots);
+    // println!("get_bots_in_range: {}", b);
+    // let result = point_search(p, b, &nano_bots);
+    // println!("output_point: {:?}", result);
+
+    // Found a new larger point, pos: (11310453, 29219799, 46389110), count: 915
+    // output_point: (11310452, 29219798, 46389110)
+
+    let p = (11310452-1000000, 29219798, 46389110);
     let b = get_bots_in_range(p, &nano_bots);
     println!("get_bots_in_range: {}", b);
     let result = point_search(p, b, &nano_bots);
     println!("output_point: {:?}", result);
-
-    // 86919360 too low :(
 
 }
 
