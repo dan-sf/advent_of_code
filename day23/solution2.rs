@@ -1,6 +1,6 @@
 use std::io::{BufReader, BufRead};
 use std::fs::File;
-use std::collections::HashSet;
+use std::collections::BinaryHeap;
 
 
 #[derive(Debug)]
@@ -9,12 +9,37 @@ struct NanoBot {
     radius: i32,
 }
 
-#[derive(Debug)]
+// We define a cube using a single corner (smallest corner point) and an edge length
+#[derive(Debug, Copy, Clone, PartialOrd, Ord, PartialEq, Eq)]
 struct Cube {
-    //points: [(i32, i32, i32), (i32, i32, i32), (i32, i32, i32),
-    //         (i32, i32, i32), (i32, i32, i32), (i32, i32, i32)], // Center points for each face of the cube
-    points: [(i32, i32, i32); 6],
-    center: (i32, i32, i32),
+    x: i32,
+    y: i32,
+    z: i32,
+    edge: i32,
+}
+
+impl Cube {
+    fn get_pos(self) -> (i32, i32, i32) {
+        (self.x, self.y, self.z)
+    }
+
+    fn get_corners(self) -> [(i32, i32, i32); 8] {
+        let cube_corners = [
+            (self.x, self.y, self.z),
+            (self.x, self.y, self.z + self.edge),
+            (self.x, self.y + self.edge, self.z),
+            (self.x, self.y + self.edge, self.z + self.edge),
+            (self.x + self.edge, self.y, self.z),
+            (self.x + self.edge, self.y, self.z + self.edge),
+            (self.x + self.edge, self.y + self.edge, self.z),
+            (self.x + self.edge, self.y + self.edge, self.z + self.edge)
+        ];
+        cube_corners
+    }
+
+    fn new_pos(pos: (i32, i32, i32), edge: i32) -> Cube {
+        Cube { x: pos.0, y: pos.1, z: pos.2, edge: edge }
+    }
 }
 
 fn parse_input(path: &str) -> Vec<NanoBot> {
@@ -32,189 +57,118 @@ fn parse_input(path: &str) -> Vec<NanoBot> {
     output
 }
 
-fn get_range(a: &NanoBot, b: &NanoBot) -> i32 {
-    get_range_pos(a.pos, b.pos)
-}
-
-fn get_range_pos(a: (i32, i32, i32), b: (i32, i32, i32)) -> i32 {
+fn get_manhattan_dist(a: (i32, i32, i32), b: (i32, i32, i32)) -> i32 {
     i32::abs(a.0 - b.0) +
     i32::abs(a.1 - b.1) +
     i32::abs(a.2 - b.2)
+}
+
+fn is_bot_in_cube(cube: &Cube, bot: &NanoBot) -> bool {
+    (bot.pos.0 >= cube.x && bot.pos.0 <= cube.x + cube.edge) &&
+    (bot.pos.1 >= cube.y && bot.pos.1 <= cube.y + cube.edge) &&
+    (bot.pos.2 >= cube.z && bot.pos.2 <= cube.z + cube.edge)
+}
+
+// Return the range, min, and max x/y/z values from the nano bot list
+fn get_bot_range(nano_bots: &Vec<NanoBot>) -> ((i32, i32, i32), (i32, i32, i32), (i32, i32, i32)) {
+    let (mut min_x, mut min_y, mut min_z) = (std::i32::MAX, std::i32::MAX, std::i32::MAX);
+    let (mut max_x, mut max_y, mut max_z) = (std::i32::MIN, std::i32::MIN, std::i32::MIN);
+    for bot in nano_bots.iter() {
+        min_x = i32::min(bot.pos.0 - bot.radius, min_x);
+        min_y = i32::min(bot.pos.1 - bot.radius, min_y);
+        min_z = i32::min(bot.pos.2 - bot.radius, min_z);
+        max_x = i32::max(bot.pos.0 + bot.radius, max_x);
+        max_y = i32::max(bot.pos.1 + bot.radius, max_y);
+        max_z = i32::max(bot.pos.2 + bot.radius, max_z);
+    }
+
+    ((max_x-min_x, max_y-min_y, max_z-min_z), (min_x, min_y, min_z), (max_x, max_y, max_z))
+}
+
+fn max_point(pos: (i32, i32, i32)) -> i32 {
+    i32::max(i32::max(pos.0, pos.1), pos.2)
 }
 
 fn sum_point(pos: (i32, i32, i32)) -> i32 {
     pos.0 + pos.1 + pos.2
 }
 
-fn get_bots_in_range(pos: (i32, i32, i32), nano_bots: &Vec<NanoBot>) -> i32 {
-    let mut output = 0;
-    for bot in nano_bots.iter() {
-        if get_range_pos(pos, bot.pos) <= bot.radius {
-            output += 1;
-        }
-    }
-    output
-}
+// Perform an ordered BFS-like search on the space. We create a large cube that holds all the bots
+// then continually divide the cube until we are at the smallest possible cube with the highest bot
+// count
+fn get_dist_to_best_point(nano_bots: &Vec<NanoBot>) -> i32 {
+    let (range, mins, _) = get_bot_range(nano_bots);
+    let edge = get_smallest_edge(max_point(range));
 
-fn point_search(start: (i32, i32, i32), mut bot_count: i32, nano_bots: &Vec<NanoBot>) -> (i32, i32, i32) {
-
-    let mut output_point = start;
-    let mut visited: HashSet<(i32, i32, i32)> = HashSet::new();
-    let mut queue: Vec<(i32, (i32, i32, i32))> = Vec::new();
-    queue.push((bot_count, start));
+    let mut queue: BinaryHeap<(i32, Cube)> = BinaryHeap::new();
+    queue.push((nano_bots.len() as i32, Cube::new_pos(mins, edge))); // Use the bot count to order the heap
 
     while !queue.is_empty() {
-        let (cur_bot_count, cur_pos) = queue.pop().unwrap();
-        visited.insert(cur_pos);
+        let (_bots, cube) = queue.pop().unwrap();
 
-        if cur_bot_count < bot_count {
+        if cube.edge == 0 {
+            let max_bots: i32 = nano_bots.iter().map(
+                |b| if in_range(b, cube.get_pos()) { 1 } else { 0 }).sum();
+            println!("Best point: {:?}", cube.get_pos());
+            println!("Bots in range: {}", max_bots);
+            let min_dist = sum_point(cube.get_pos());
+            return min_dist;
+        }
+
+        let new_edge = cube.edge / 2;
+        let base_cube = Cube::new_pos(cube.get_pos(), new_edge);
+        for corner in base_cube.get_corners().iter() {
+            let cube = Cube::new_pos(*corner, new_edge);
+            let bots = get_bots_in_cube(&cube, nano_bots);
+            queue.push((bots, cube));
+        }
+    }
+
+    unreachable!()
+}
+
+// Get the smallest power of 2 that is larger than the given value
+fn get_smallest_edge(value: i32) -> i32 {
+    let mut start = 31;
+    loop {
+        if 1<<start & value != 0 {
+            break;
+        }
+        start -= 1;
+    }
+    1<<(start + 1)
+}
+
+// This function isn't fully correct, we just count bots for a given cube if the bots are within
+// the cube, or the bot is within range of any of the cube's corners. I couldn't get a fully
+// correct version implemented but this worked for my input...
+fn get_bots_in_cube(cube: &Cube, nano_bots: &Vec<NanoBot>) -> i32 {
+    let cube_corners = cube.get_corners();
+    let mut output = 0;
+    for bot in nano_bots.iter() {
+        // Check if a bot is within a cube
+        if is_bot_in_cube(cube, bot) {
+            output += 1;
             continue;
         }
 
-        for step in &[(1, 0, 0), (0, 1, 0), (0, 0, 1),
-                      (-1, 0, 0), (0, -1, 0), (0, 0, -1)] {
-        //for step in &[(-1, 0, 0), (0, -1, 0), (0, 0, -1)] {
-            let new_pos = (cur_pos.0 + step.0, cur_pos.1 + step.1, cur_pos.2 + step.2);
-            let new_bot_count = get_bots_in_range(new_pos, nano_bots);
-
-            if new_bot_count > bot_count {
-                println!("Found a new larger point, pos: {:?}, count: {}", new_pos, new_bot_count);
-                output_point = new_pos;
-                bot_count = new_bot_count;
-            } else if new_bot_count < bot_count {
-                continue;
-            } else if new_bot_count == bot_count && sum_point(new_pos) < sum_point(output_point) {
-                output_point = new_pos;
-            }
-
-            if !visited.contains(&new_pos) {
-                queue.push((bot_count, new_pos));
+        // Check if a bot is within range of any of the corners
+        for pos in cube_corners.iter() {
+            if in_range(bot, *pos) {
+                output += 1;
+                break;
             }
         }
     }
-
-    output_point
-}
-
-fn get_root_cube(nano_bots: &Vec<NanoBot>) -> Cube {
-    let mut max_pos = (0, 0, 0);
-    let mut min_pos = (0, 0, 0);
-
-    for bot in nano_bots.iter() {
-        if bot.pos.0 > max_pos.0 { max_pos.0 = bot.pos.0; }
-        if bot.pos.1 > max_pos.1 { max_pos.1 = bot.pos.1; }
-        if bot.pos.2 > max_pos.2 { max_pos.2 = bot.pos.2; }
-
-        if bot.pos.0 < min_pos.0 { min_pos.0 = bot.pos.0; }
-        if bot.pos.1 < min_pos.1 { min_pos.1 = bot.pos.1; }
-        if bot.pos.2 < min_pos.2 { min_pos.2 = bot.pos.2; }
-    }
-
-    Cube {
-        center: (0, 0, 0),
-        points: [(max_pos.0, 0, 0), (0, max_pos.1, 0), (0, 0, max_pos.2),
-                 (min_pos.0, 0, 0), (0, min_pos.1, 0), (0, 0, min_pos.2)],
-    }
-}
-
-fn from_slice(arr_vec: &[(i32, i32, i32)]) -> [(i32, i32, i32); 6] {
-    let mut array = [(0, 0, 0); 6];
-    let arr_vec = &arr_vec[..array.len()]; // panics if not enough data
-    array.copy_from_slice(arr_vec); 
-    array
-}
-
-fn divide_cube(cube: &Cube) -> Vec<Cube> {
-    let mut output: Vec<Cube> = vec![];
-    let cp = cube.points;
-    let cc = cube.center;
-
-    let positive_points = [((cp[0]).0, cc.1+(cp[1]).1/2, cc.2+(cp[2]).2/2),
-                           (cc.0+(cp[0]).0/2, (cp[1]).1, cc.2+(cp[2]).2/2),
-                           (cc.0+(cp[0]).0/2, cc.1+(cp[1]).1/2, (cp[2]).2),
-                           (cc.0, cc.1+(cp[1]).1/2, cc.2+(cp[2]).2/2),
-                           (cc.0+(cp[0]).0/2, cc.1, cc.2+(cp[2]).2/2),
-                           (cc.0+(cp[0]).0/2, cc.1+(cp[1]).1/2, cc.2)];
-
-    output.push(Cube {
-        center: (cc.0, cc.1, cc.2),
-        points: positive_points,
-    });
-
-    let cube_points = positive_points.iter().map(|r| (r.0, -r.1, r.2)).collect::<Vec<(i32, i32, i32)>>();
-    output.push(Cube {
-        center: (cc.0, -cc.1, cc.2),
-        points: from_slice(&cube_points),
-    });
-
-    let cube_points = positive_points.iter().map(|r| (-r.0, r.1, r.2)).collect::<Vec<(i32, i32, i32)>>();
-    output.push(Cube {
-        center: (-cc.0, cc.1, cc.2),
-        points: from_slice(&cube_points),
-    });
-
-    let cube_points = positive_points.iter().map(|r| (r.0, r.1, -r.2)).collect::<Vec<(i32, i32, i32)>>();
-    output.push(Cube {
-        center: (cc.0, cc.1, -cc.2),
-        points: from_slice(&cube_points),
-    });
-
-    //output.push(Cube {
-    //    center: (cc.0, cc.1, cc.2),
-    //    points: (((cp.0).0, cc.1-(cp.1).1/2, cc.2+(cp.2).2/2), (cc.0-(cp.0).0/2, (cp.1).1, cc.2+(cp.2).2/2), (cc.0-(cp.0).0/2, cc.1+(cp.1).1/2, (cp.2).2),
-    //             ((cp.3).0, cc.1-(cp.4).1/2, cc.2+(cp.5).2/2), (cc.0-(cp.3).0/2, (cp.4).1, cc.2+(cp.5).2/2), (cc.0-(cp.3).0/2, cc.1+(cp.4).1/2, (cp.5).2)),
-    //});
-
-    //output.push(Cube {
-    //    center: (cc.0, cc.1, cc.2),
-    //    points: (((cp.0).0, cc.1+(cp.1).1/2, cc.2-(cp.2).2/2), (cc.0+(cp.0).0/2, (cp.1).1, cc.2-(cp.2).2/2), (cc.0+(cp.0).0/2, cc.1-(cp.1).1/2, (cp.2).2),
-    //             ((cp.3).0, cc.1+(cp.4).1/2, cc.2-(cp.5).2/2), (cc.0+(cp.3).0/2, (cp.4).1, cc.2-(cp.5).2/2), (cc.0+(cp.3).0/2, cc.1-(cp.4).1/2, (cp.5).2)),
-    //});
-
-    //output.push(Cube {
-    //    center: (cc.0, cc.1, cc.2),
-    //    points: (((cp.0).0, cc.1-(cp.1).1/2, cc.2-(cp.2).2/2), (cc.0-(cp.0).0/2, (cp.1).1, cc.2-(cp.2).2/2), (cc.0-(cp.0).0/2, cc.1-(cp.1).1/2, (cp.2).2),
-    //             ((cp.3).0, cc.1-(cp.4).1/2, cc.2-(cp.5).2/2), (cc.0-(cp.3).0/2, (cp.4).1, cc.2-(cp.5).2/2), (cc.0-(cp.3).0/2, cc.1-(cp.4).1/2, (cp.5).2)),
-    //});
-
     output
+}
+
+fn in_range(bot: &NanoBot, pos: (i32, i32, i32)) -> bool {
+    get_manhattan_dist(bot.pos, pos) <= bot.radius
 }
 
 fn main() {
     let nano_bots = parse_input("input.txt");
-    let mut max_bot = &nano_bots[0];
-    let mut max_bots = 0;
-
-    for i in 0..nano_bots.len() {
-        let mut bots_near = 0;
-        for j in 0..nano_bots.len() {
-            let bot_dist = get_range(&nano_bots[i], &nano_bots[j]);
-            if i != j && (bot_dist <= nano_bots[i].radius || bot_dist <= nano_bots[j].radius) {
-                bots_near += 1;
-            }
-        }
-
-        if bots_near > max_bots {
-            max_bots = bots_near;
-            max_bot = &nano_bots[i];
-        }
-    }
-
-    //let p = (11310452-1000000, 29219798, 46389110);
-    //let b = get_bots_in_range(p, &nano_bots);
-    //println!("get_bots_in_range: {}", b);
-    //let result = point_search(p, b, &nano_bots);
-    //println!("output_point: {:?}", result);
-    println!("cube: {:?}", get_root_cube(&nano_bots));
-
-    let c = Cube {
-        center: (0, 0, 0),
-        points: [(8, 0, 0), (0, 8, 0), (0, 0, 8),
-                 (-8, 0, 0), (0, -8, 0), (0, 0, -8)],
-    };
-    println!("breakdowns:");
-    for dc in divide_cube(&c).iter() {
-        println!("{:?}", dc);
-    }
+    println!("Shortest manhattan distance: {:?}", get_dist_to_best_point(&nano_bots));
 }
 
