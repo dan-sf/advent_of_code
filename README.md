@@ -1,7 +1,7 @@
-Advent of Code Solutions
-========================
+Advent of Code 2018 Solutions
+=============================
 
-Here are my solutions to the [Advent of Code](https://adventofcode.com/)
+Here are my 2018 solutions to the [Advent of Code](https://adventofcode.com/)
 programming puzzles. These Christmas themed programming puzzles are released
 each December by [Eric Wastl](http://was.tl/) and are a great was to learn a
 new programming language.
