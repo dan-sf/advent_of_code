@@ -14,19 +14,18 @@ namespace Day07 {
                 .ToArray();
 
             Solution1(memory);
-            //Solution2(memory);
+            Solution2(memory);
         }
 
         static void Solution1(int[] memory) {
             var sequences = generateSequences(0, 5);
-            var inputSignal = 0;
+            var programState = new ProgramState();
             var Solution1 = 0;
 
             var temp = memory.ToArray();
             foreach (var seq in sequences) {
-                var res = 0;
                 foreach (var setting in seq) {
-                    Instruction inst = new Instruction(memory, 0);
+                    Instruction inst = new Instruction(memory, 0, programState);
 
                     if (inst.needsInput) {
                         inst.instInput = setting;
@@ -37,63 +36,85 @@ namespace Day07 {
                         if (cont == false) {
                             break;
                         }
-                        if (inst.hasResult) {
-                            res = inst.result;
-                        }
 
-                        inst = new Instruction(memory, inst.opIndex + inst.jump);
+                        inst = new Instruction(memory, inst.opIndex + inst.jump, programState);
                         if (inst.needsInput) {
-                            inst.instInput = res;
+                            inst.instInput = programState.state;
                         }
                     }
-                    inputSignal = res;
                 }
+                Solution1 = Math.Max(Solution1, programState.state);
                 memory = temp.ToArray();
-                Solution1 = Math.Max(Solution1, res);
-                inputSignal = 0;
+                programState.reset();
             }
 
             WriteLine($"Solution 1: {Solution1}");
         }
 
         static void Solution2(int[] memory) {
-            //var sequences = generateSequences(5, 10);
-            var inputSignal = 0;
+            var sequences = generateSequences(5, 10);
             var Solution2 = 0;
 
-            var res = 0;
+            foreach (var inputs in sequences) {
+                var initInputs = inputs.ToArray();
+                var done = false;
+                var firstLoop = true;
 
-            var sequences = new int[] {9,8,7,6,5};
-            //while (true) {
-                //foreach (var seq in sequences) {
-                    var seq = sequences;
-                    foreach (var setting in seq) {
-                        Instruction inst = new Instruction(memory, 0);
+                var amps = new int[][] {
+                    memory.ToArray(),
+                    memory.ToArray(),
+                    memory.ToArray(),
+                    memory.ToArray(),
+                    memory.ToArray()};
+                var instructions = new Instruction[] {
+                    new Instruction(amps[0], 0, new ProgramState()),
+                    new Instruction(amps[1], 0, new ProgramState()),
+                    new Instruction(amps[2], 0, new ProgramState()),
+                    new Instruction(amps[3], 0, new ProgramState()),
+                    new Instruction(amps[4], 0, new ProgramState())};
+                var inited = new bool[] {
+                    false,
+                    false,
+                    false,
+                    false,
+                    false};
 
-                        if (inst.needsInput) {
-                            inst.instInput = setting;
-                        }
+                while (!done) {
+                    for (int i = 0; i < amps.Length; i++) {
+                        var hasOutput = false;
+                        while (!done && !hasOutput) {
+                            if (instructions[i].needsInput) {
+                                if (inited[i]) {
+                                    instructions[i].instInput = inputs[i];
+                                } else {
+                                    instructions[i].instInput = initInputs[i];
+                                    inited[i] = true;
+                                }
 
-                        while (true) {
-                            var cont = inst.run(memory);
+                                if (firstLoop) {
+                                    firstLoop = false;
+                                    inputs[i] = 0; // Edge case for first amp
+                                }
+                            }
+
+                            var cont = instructions[i].run(amps[i]);
                             if (cont == false) {
+                                Solution2 = Math.Max(Solution2, inputs[0]);
+                                done = true;
                                 break;
                             }
-                            if (inst.hasResult) {
-                                res = inst.result;
+                            if (instructions[i].hasResult) {
+                                inputs[(i+1) % amps.Length] = instructions[i].result;
+                                hasOutput = true;
                             }
 
-                            inst = new Instruction(memory, inst.opIndex + inst.jump);
-                            if (inst.needsInput) {
-                                inst.instInput = res;
-                            }
+                            instructions[i] = new Instruction(amps[i],
+                                    instructions[i].opIndex + instructions[i].jump,
+                                    instructions[i].programState);
                         }
-                        inputSignal = res;
                     }
-                //}
-                Solution2 = Math.Max(Solution2, res);
-                WriteLine($"Solution 2: {Solution2}");
-            //}
+                }
+            }
 
             WriteLine($"Solution 2: {Solution2}");
         }
@@ -126,10 +147,13 @@ namespace Day07 {
     }
 
     class ProgramState {
-        public int lastOutput = 0;
-        public int lastInput = 0;
+        public int state = 0;
 
         public ProgramState() { }
+
+        public void reset() {
+            state = 0;
+        }
     }
 
     class Instruction {
@@ -139,14 +163,17 @@ namespace Day07 {
         public int instInput;
         public int[] paramModes;
         public int result;
+        public ProgramState programState;
 
         public bool hasResult;
         public bool needsInput;
 
-        public Instruction(int[] memory, int index) {
+        public Instruction(int[] memory, int index, ProgramState programState) {
             opCode = memory[index] % 100;
             opIndex = index;
             var paramNum = memory[index] / 100;
+            this.programState = programState;
+            instInput = 0;
 
             needsInput = false;
             hasResult = false;
@@ -198,26 +225,14 @@ namespace Day07 {
                 return true;
             } else if (opCode == 3 || opCode == 4) {
                 if (opCode == 3) {
-                    //string userInput;
-                    //if (instInput == "-1") {
-                    //    Write("Input value: ");
-                    //    userInput = ReadLine();
-                    //} else {
-                    //    userInput = instInput;
-                    //}
-
-                    //memory[memory[opIndex+1]] = Int32.Parse(userInput.TrimEnd('\n'));
-
                     memory[memory[opIndex+1]] = instInput;
-
                 } else {
                     if (paramModes[0] == 1) {
                         result = memory[opIndex+1];
                     } else {
                         result = memory[memory[opIndex+1]];
                     }
-                    hasResult = true;
-                    //WriteLine($"Output: {result}");
+                    programState.state = result;
                 }
                 return true;
             } else if (opCode >= 5 && opCode <= 8) {
@@ -258,5 +273,4 @@ namespace Day07 {
             return false;
         }
     }
-
 }
