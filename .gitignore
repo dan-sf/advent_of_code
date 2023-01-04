@@ -2,3 +2,8 @@
 **/solution2
 **/obj
 **/bin
+
+# Gradle projects
+**/build
+**/.idea
+**/.gradle
