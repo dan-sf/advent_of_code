@@ -94,6 +94,7 @@ fun solution1() {
         for (i in 0..monkeys.size-1) {
             while (monkeys[i].items.size > 0) {
                 var item = monkeys[i].items[0]
+
                 monkeys[i].items.removeAt(0)
                 monkeys[i].inspectCount += 1
                 item = monkeys[i].getOpOutput(item)
@@ -119,6 +120,7 @@ fun solution1() {
         .reduce({a, b -> a * b})
 
     println(business)
+
 }
 
 // This solution finds the correct answer at round 20 for the test data.
@@ -131,6 +133,10 @@ fun solution2() {
     var lineIndex = 0
 
     val monkeys: MutableList<Monkey> = mutableListOf()
+
+    var opPlus = 0
+    var opMul = 0
+
 
     while (lineIndex < lines.size) {
         if (lines[lineIndex].startsWith("Monkey")) {
@@ -172,6 +178,10 @@ fun solution2() {
                 var item = monkeys[i].items[0]
                 monkeys[i].items.removeAt(0)
                 monkeys[i].inspectCount += 1
+
+                if (monkeys[i].operationOp == "+") opPlus += 1
+                else opMul += 1
+
 
                 // var newItem = 1
                 // val _item = monkeys[i].getOpOutput2(item)
@@ -223,6 +233,7 @@ fun solution2() {
         .reduce({a, b -> a * b})
 
     println(business)
+    println("OpPlus: ${opPlus}, opMul: ${opMul}")
 }
 
 fun main(args: Array<String>) {
