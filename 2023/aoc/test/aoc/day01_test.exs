@@ -9,6 +9,7 @@ defmodule Aoc.Day01Test do
       "../../../input/day01/input.test.txt"
       |> Path.expand(__DIR__)
       |> part1()
+
     assert result
   end
 
@@ -18,6 +19,7 @@ defmodule Aoc.Day01Test do
       "../../../input/day01/input.test.txt"
       |> Path.expand(__DIR__)
       |> part2()
+
     assert result
   end
 end

@@ -11,6 +11,7 @@ defmodule Mix.Tasks.AocInit do
 
   defp init_code(base_path, day) do
     file_path = Path.join(base_path, "day#{day}.ex")
+
     content = """
     defmodule Aoc.Day#{day} do
       def part1(input_path) do
@@ -29,6 +30,7 @@ defmodule Mix.Tasks.AocInit do
   # @Question: Since these tests aren't expected to change, could macros be used here?
   defp init_tests(base_path, day) do
     file_path = Path.join(base_path, "day#{day}_test.exs")
+
     content = """
     defmodule Aoc.Day#{day}Test do
       use ExUnit.Case
@@ -41,6 +43,7 @@ defmodule Mix.Tasks.AocInit do
           "../../../input/day#{day}/input.test.txt"
           |> Path.expand(__DIR__)
           |> part1()
+
         assert result
       end
 
@@ -50,6 +53,7 @@ defmodule Mix.Tasks.AocInit do
           "../../../input/day#{day}/input.test.txt"
           |> Path.expand(__DIR__)
           |> part2()
+
         assert result
       end
     end
@@ -77,12 +81,12 @@ defmodule Mix.Tasks.AocInit do
         |> part#{part}()
         |> IO.inspect(label: "Part #{part} Results")
 
-        #if Enum.member?(args, "-b"),
-        #  do: Benchee.run(%{part_1: fn -> input |> part1() end}),
-        #  else:
-        #    input
-        #    |> part1()
-        #    |> IO.inspect(label: "Part 1 Results")
+        # if Enum.member?(args, "-b"),
+        #   do: Benchee.run(%{part_1: fn -> input |> part1() end}),
+        #   else:
+        #     input
+        #     |> part1()
+        #     |> IO.inspect(label: "Part 1 Results")
       end
     end
     """
