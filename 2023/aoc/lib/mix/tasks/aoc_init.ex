@@ -27,7 +27,6 @@ defmodule Mix.Tasks.AocInit do
     if File.exists?(file_path) == false, do: File.write!(file_path, content)
   end
 
-  # @Question: Since these tests aren't expected to change, could macros be used here?
   defp init_tests(base_path, day) do
     file_path = Path.join(base_path, "day#{day}_test.exs")
 
@@ -40,7 +39,7 @@ defmodule Mix.Tasks.AocInit do
       @tag :skip
       test "part1" do
         result =
-          "../../../input/day#{day}/input.test.txt"
+          "../../input/day#{day}/input.test.txt"
           |> Path.expand(__DIR__)
           |> part1()
 
@@ -50,7 +49,7 @@ defmodule Mix.Tasks.AocInit do
       @tag :skip
       test "part2" do
         result =
-          "../../../input/day#{day}/input.test.txt"
+          "../../input/day#{day}/input.test.txt"
           |> Path.expand(__DIR__)
           |> part2()
 
@@ -59,10 +58,11 @@ defmodule Mix.Tasks.AocInit do
     end
     """
 
-    File.write!(file_path, content)
+    if File.exists?(file_path) == false, do: File.write!(file_path, content)
   end
 
   # @Question: Since these tasks aren't expected to change, could macros be used here?
+  # @Note: It might be cleaner to have a single task file and we just match on the arg for the day/part...
   defp init_tasks(base_path, day, part) do
     file_path = Path.join(base_path, "d#{day}.p#{part}.ex")
 

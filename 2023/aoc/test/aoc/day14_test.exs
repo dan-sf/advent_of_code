@@ -6,7 +6,7 @@ defmodule Aoc.Day14Test do
   @tag :skip
   test "part1" do
     result =
-      "../../../input/day14/input.test.txt"
+      "../../input/day14/input.test.txt"
       |> Path.expand(__DIR__)
       |> part1()
 
@@ -16,7 +16,7 @@ defmodule Aoc.Day14Test do
   @tag :skip
   test "part2" do
     result =
-      "../../../input/day14/input.test.txt"
+      "../../input/day14/input.test.txt"
       |> Path.expand(__DIR__)
       |> part2()
 
