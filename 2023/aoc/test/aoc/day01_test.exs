@@ -5,7 +5,7 @@ defmodule Aoc.Day01Test do
 
   test "part1" do
     result =
-      "../../input/day01/input.test.txt"
+      "../../input/day01/input.test.1.txt"
       |> Path.expand(__DIR__)
       |> part1()
 
@@ -14,7 +14,7 @@ defmodule Aoc.Day01Test do
 
   test "part2" do
     result =
-      "../../input/day01/input.test2.txt"
+      "../../input/day01/input.test.2.txt"
       |> Path.expand(__DIR__)
       |> part2()
 

@@ -39,7 +39,7 @@ defmodule Mix.Tasks.AocInit do
       @tag :skip
       test "part1" do
         result =
-          "../../input/day#{day}/input.test.txt"
+          "../../input/day#{day}/input.test.1.txt"
           |> Path.expand(__DIR__)
           |> part1()
 
@@ -49,7 +49,7 @@ defmodule Mix.Tasks.AocInit do
       @tag :skip
       test "part2" do
         result =
-          "../../input/day#{day}/input.test.txt"
+          "../../input/day#{day}/input.test.2.txt"
           |> Path.expand(__DIR__)
           |> part2()
 
@@ -61,50 +61,16 @@ defmodule Mix.Tasks.AocInit do
     if File.exists?(file_path) == false, do: File.write!(file_path, content)
   end
 
-  # @Question: Since these tasks aren't expected to change, could macros be used here?
-  # @Note: It might be cleaner to have a single task file and we just match on the arg for the day/part...
-  defp init_tasks(base_path, day, part) do
-    file_path = Path.join(base_path, "d#{day}.p#{part}.ex")
-
-    # TODO: Figure out if you want to use Benchee
-    content = """
-    defmodule Mix.Tasks.D#{day}.P#{part} do
-      use Mix.Task
-
-      import Aoc.Day#{day}
-
-      @shortdoc "Day #{day} Part #{part}"
-      def run(_args) do
-        input = Path.expand("../../../input/day#{day}/input.txt", __DIR__)
-
-        input
-        |> part#{part}()
-        |> IO.inspect(label: "Part #{part} Results")
-
-        # if Enum.member?(args, "-b"),
-        #   do: Benchee.run(%{part_1: fn -> input |> part1() end}),
-        #   else:
-        #     input
-        #     |> part1()
-        #     |> IO.inspect(label: "Part 1 Results")
-      end
-    end
-    """
-
-    File.write!(file_path, content)
-  end
-
   defp init_inputs(base_path) do
     Path.join(base_path, "input.txt") |> File.touch!()
-    Path.join(base_path, "input.test.txt") |> File.touch!()
+    Path.join(base_path, "input.test.1.txt") |> File.touch!()
+    Path.join(base_path, "input.test.2.txt") |> File.touch!()
   end
 
   @impl Mix.Task
   def run(_args) do
     code_base_path = Path.expand("../../aoc", __DIR__)
     code_base_path |> File.mkdir_p!()
-
-    task_base_path = __DIR__
 
     test_base_path = Path.expand("../../../test/aoc", __DIR__)
     test_base_path |> File.mkdir_p!()
@@ -119,10 +85,6 @@ defmodule Mix.Tasks.AocInit do
       init_inputs(input_base_path)
 
       init_tests(test_base_path, day)
-
-      for part <- 1..2 do
-        init_tasks(task_base_path, day, part)
-      end
     end
   end
 end
