@@ -3,23 +3,21 @@ defmodule Aoc.Day03Test do
 
   import Aoc.Day03
 
-  @tag :skip
   test "part1" do
     result =
       "../../input/day03/input.test.1.txt"
       |> Path.expand(__DIR__)
       |> part1()
 
-    assert result
+    assert result == 4361
   end
 
-  @tag :skip
   test "part2" do
     result =
       "../../input/day03/input.test.2.txt"
       |> Path.expand(__DIR__)
       |> part2()
 
-    assert result
+    assert result == 467835
   end
 end
